@@ -1,0 +1,554 @@
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@source '../components';
+:root {
+  --ink: #17130f;
+  --yellow: #ffd447;
+  --line: #e4dac8;
+}
+a {
+  color: inherit;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+button,
+input,
+select {
+  min-height: 44px;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #a55b00;
+  outline-offset: 3px;
+}
+nav {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+nav a {
+  font-size: 14px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.brandLink {
+  text-decoration: none;
+}
+.demoBanner {
+  padding: 8px 20px;
+  background: #fff0b6;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 650;
+}
+.heroPhoto {
+  position: relative;
+  height: 370px;
+  border-radius: 32px;
+  overflow: hidden;
+  transform: rotate(3deg);
+}
+.heroPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.heroPhoto span {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  font-size: 30px;
+  font-weight: 900;
+  text-shadow: 0 2px 20px #000;
+  background: #17130fa0;
+  padding: 12px;
+  border-radius: 12px;
+}
+.foodImg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.customImage {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 18px;
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 20px 0;
+}
+legend {
+  font-weight: 800;
+}
+.option input {
+  min-height: auto;
+}
+.error {
+  padding: 16px;
+  background: #ffe1dc;
+  color: #8e2415;
+  border-radius: 12px;
+  margin: 12px 0;
+}
+.error button {
+  float: right;
+  border: 0;
+  background: transparent;
+}
+.skeleton {
+  height: 330px;
+  background: linear-gradient(110deg, #eee4d2 30%, #fff8e9 50%, #eee4d2 70%);
+  background-size: 200%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 22px;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.empty {
+  text-align: center;
+  padding: 45px;
+  color: #766d61;
+}
+.bottomNav {
+  display: none;
+}
+.sheet input:not([type="radio"]):not([type="checkbox"]),
+.sheet select,
+.formGrid input,
+.formGrid select {
+  display: block;
+  width: 100%;
+  border: 1px solid #d9cebb;
+  background: white;
+  padding: 12px;
+  border-radius: 10px;
+  margin: 6px 0;
+}
+.sheet input[type="checkbox"],
+.sheet input[type="radio"] {
+  width: auto;
+  min-height: 0;
+}
+.muted svg {
+  vertical-align: middle;
+}
+.staffShell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+  background: #f8f5ee;
+}
+.sidebar {
+  background: #17130f;
+  color: #fffaf0;
+  padding: 28px 20px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.sidebar nav {
+  display: grid;
+  gap: 8px;
+}
+.sidebar nav a {
+  padding: 12px;
+  border-radius: 10px;
+}
+.sidebar nav a.active {
+  background: #ffd447;
+  color: #17130f;
+}
+.sidebar small {
+  color: #b7af9f;
+}
+.sidebar button {
+  margin-top: auto;
+}
+.workspace {
+  padding: 32px;
+  min-width: 0;
+}
+.workspace h1 {
+  font-size: 36px;
+  letter-spacing: -0.04em;
+  margin: 8px 0;
+}
+.workspace h2 {
+  font-size: 22px;
+}
+.workspaceHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 25px;
+}
+.metricGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.metricGrid div {
+  min-width: 0;
+}
+.metricGrid small {
+  display: block;
+}
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.dataTable th {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #766d61;
+  letter-spacing: 0.06em;
+}
+.dataTable td,
+.dataTable th {
+  padding: 14px 10px;
+  border-bottom: 1px solid #eee3d1;
+}
+.dataTable td small {
+  display: block;
+  color: #766d61;
+}
+.tableScroll {
+  overflow: auto;
+}
+.rowActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rowActions button {
+  border: 1px solid #ddd1bd;
+  border-radius: 9px;
+  padding: 8px 12px;
+  background: #fffaf0;
+  font-weight: 700;
+}
+.formGrid {
+  display: grid;
+  gap: 14px;
+  max-width: 600px;
+}
+.formGrid label {
+  font-size: 14px;
+  font-weight: 700;
+}
+.twoColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.bars {
+  display: grid;
+  gap: 12px;
+}
+.barRow {
+  display: grid;
+  grid-template-columns: 100px 1fr 45px;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+}
+.barTrack {
+  background: #f1e8d8;
+  border-radius: 5px;
+  overflow: hidden;
+  height: 22px;
+}
+.barTrack span {
+  display: block;
+  height: 100%;
+  background: #e9a925;
+  min-width: 2px;
+}
+.kitchen {
+  background: #171a1c;
+  color: #fff;
+  min-height: 100vh;
+  padding: 28px;
+}
+.kitchen .kanban section {
+  background: #252a2d;
+}
+.kitchen .ticket {
+  color: #17130f;
+  font-size: 19px;
+  padding: 22px;
+}
+.kitchen .ticket > div > b {
+  font-size: 30px;
+}
+.kitchen .ticket button {
+  font-size: 18px;
+  min-height: 56px;
+}
+.kitchen .ticket.late {
+  border: 3px solid #f27050;
+}
+.kitchen .ticket .due {
+  font-size: 16px;
+  color: #544536;
+}
+.kitchen .ticket p {
+  margin: 12px 0;
+}
+.kitchen .ticket small {
+  font-size: 14px;
+}
+.kitchen .panel {
+  color: #17130f;
+}
+.kitchen .kanban h2 {
+  font-size: 16px;
+}
+.badge {
+  display: inline-block;
+  padding: 6px 10px;
+  background: #fff0b6;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #17130f;
+}
+.tracking {
+  max-width: 680px;
+  margin: auto;
+  padding: 35px 20px 100px;
+}
+.tracking h1 {
+  font-size: 46px;
+  letter-spacing: -0.04em;
+}
+.steps {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+  margin: 30px 0;
+}
+.steps li {
+  padding: 14px 18px;
+  background: #eee7da;
+  border-radius: 12px;
+  font-weight: 700;
+}
+.steps li.done {
+  background: #dfefda;
+  color: #2c612a;
+}
+.steps li.current {
+  background: #ffd447;
+}
+.receipt {
+  background: white;
+  padding: 25px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+.receiptLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.login {
+  max-width: 480px;
+  margin: 10vh auto;
+  padding: 30px;
+}
+.login h1 {
+  font-size: 38px;
+}
+.login form {
+  display: grid;
+  gap: 16px;
+}
+.login input,
+.login select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.install {
+  bottom: 80px;
+}
+.cartbar {
+  bottom: 22px;
+}
+.quiet {
+  color: #766d61;
+  font-size: 13px;
+}
+.low {
+  color: #a5331b;
+  font-weight: 800;
+}
+.staffMobileNav {
+  display: none;
+}
+.status.cancelled,
+.status.rejected {
+  background: #ffe1dc;
+}
+.status.accepted {
+  background: #e5def9;
+}
+.notice {
+  padding: 14px;
+  background: #e7f0dd;
+  border-radius: 12px;
+}
+.printOnly {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .staffShell {
+    grid-template-columns: 180px 1fr;
+  }
+  .workspace {
+    padding: 22px;
+  }
+  .twoColumns {
+    grid-template-columns: 1fr;
+  }
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .heroPhoto {
+    display: none;
+  }
+}
+@media (max-width: 650px) {
+  .bottomNav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    background: #fffaf0;
+    z-index: 25;
+    width: 100%;
+    justify-content: space-around;
+    border-top: 1px solid var(--line);
+    padding: 17px 8px;
+    padding-bottom: max(17px, env(safe-area-inset-bottom));
+  }
+  .cartbar {
+    bottom: 72px;
+  }
+  .menu {
+    padding-bottom: 170px;
+  }
+  .foodImg {
+    height: 150px;
+  }
+  .hero {
+    min-height: 430px;
+  }
+  .top nav {
+    gap: 12px;
+  }
+  .top nav a {
+    font-size: 12px;
+  }
+  .staffShell {
+    display: block;
+  }
+  .sidebar {
+    position: relative;
+    height: auto;
+    padding: 18px;
+    gap: 14px;
+  }
+  .sidebar nav {
+    display: flex;
+    overflow: auto;
+    gap: 4px;
+  }
+  .sidebar nav a {
+    white-space: nowrap;
+  }
+  .sidebar > small,
+  .sidebar > button {
+    display: none;
+  }
+  .workspace {
+    padding: 18px;
+  }
+  .workspaceHead {
+    align-items: start;
+    flex-wrap: wrap;
+  }
+  .workspace h1 {
+    font-size: 30px;
+  }
+  .kitchen {
+    padding: 15px;
+  }
+  .kitchen .workspaceHead h1 {
+    font-size: 28px;
+  }
+  .hero h1 {
+    font-size: 50px;
+  }
+  .sheet {
+    padding-bottom: 35px;
+  }
+  .dataTable td,
+  .dataTable th {
+    white-space: nowrap;
+  }
+  .install {
+    left: 10px;
+    right: 10px;
+  }
+}
+@media print {
+  body {
+    background: white;
+  }
+  .top,
+  .sidebar,
+  .bottomNav,
+  .rowActions,
+  .ghost,
+  .primary,
+  .demoBanner {
+    display: none !important;
+  }
+  .tracking {
+    padding: 0;
+  }
+  .receipt {
+    border: 0;
+  }
+  .printOnly {
+    display: block;
+  }
+  .steps {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
