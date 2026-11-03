@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Inventory from "./inventory";
+import StaffPanel from "./staff";
 import { useRouter } from "next/navigation";
 import { useOperations } from "./operations";
 import { request } from "./customer";
@@ -130,6 +131,7 @@ export default function Admin({ area }: { area: string }) {
           <a href="/kitchen">Kitchen display ↗</a>
           {data?.role !== "KITCHEN" && <a href="/pos">Point of sale ↗</a>}
           <a href="/menu">Customer menu ↗</a>
+          <a href="/account">My account</a>
         </nav>
         <small>
           {data?.role} · {data?.demo ? "DEMO DATA" : "LIVE WORKSPACE"}
@@ -725,65 +727,7 @@ export default function Admin({ area }: { area: string }) {
                   inventory. Cashier: POS and orders. Kitchen: preparation and
                   availability.
                 </p>
-                {data.demo ? (
-                  <p className="notice">
-                    The demo uses four fixed roles. Sign out and select a role
-                    to test its permissions.
-                  </p>
-                ) : (
-                  <>
-                    <table className="dataTable">
-                      <thead>
-                        <tr>
-                          <th>Supabase user</th>
-                          <th>Role</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.members.map((m) => (
-                          <tr key={m.user_id}>
-                            <td>{m.user_id}</td>
-                            <td>{m.role}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <form
-                      className="formGrid"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const f = new FormData(e.currentTarget);
-                        update({
-                          action: "staff",
-                          userId: f.get("userId"),
-                          role: f.get("role"),
-                        });
-                      }}
-                    >
-                      <p>
-                        Create the staff login in Supabase Auth, then assign its
-                        user UUID here.
-                      </p>
-                      <label>
-                        User UUID
-                        <input name="userId" required />
-                      </label>
-                      <label>
-                        Role
-                        <select name="role">
-                          {["OWNER", "MANAGER", "CASHIER", "KITCHEN"].map(
-                            (r) => (
-                              <option key={r}>{r}</option>
-                            ),
-                          )}
-                        </select>
-                      </label>
-                      <button className="primary" disabled={busy}>
-                        Save branch role
-                      </button>
-                    </form>
-                  </>
-                )}
+                <StaffPanel members={data.members} reload={load} />
                 <h3>Recent audit events</h3>
                 {s.audits
                   .slice(-15)

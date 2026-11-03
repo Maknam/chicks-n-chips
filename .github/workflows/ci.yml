@@ -1,0 +1,28 @@
+name: Chics and Chips checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      # Browser tests need a seeded Neon branch: set the DATABASE_URL repository secret
+      # to a dedicated CI/preview branch (never production). Skipped when absent.
+      - if: ${{ env.DATABASE_URL != '' }}
+        run: npx playwright install --with-deps chromium
+      - if: ${{ env.DATABASE_URL != '' }}
+        run: npm run test:e2e
+        env:
+          BETTER_AUTH_SECRET: ci-only-secret-at-least-32-characters-long

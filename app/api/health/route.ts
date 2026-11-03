@@ -1,14 +1,16 @@
-import { json } from "@/lib/http";
-import { readState, demoMode } from "@/lib/repository";
+import { sql } from "drizzle-orm";
+import { json } from "@/server/http";
+import { ctx } from "@/server/context";
+import { getBranch } from "@/server/services/branch";
+
 export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
-    await readState();
-    return json({
-      application: "ok",
-      database: demoMode() ? "demo-file" : "ok",
-      mode: demoMode() ? "demo" : "production",
-    });
+    const c = ctx();
+    await c.db.execute(sql`select 1`);
+    await getBranch(c);
+    return json({ application: "ok", database: "ok" });
   } catch {
     return json({ application: "degraded", database: "unavailable" }, 503);
   }

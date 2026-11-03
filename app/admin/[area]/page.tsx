@@ -1,6 +1,6 @@
 import Admin from "@/components/admin";
-import { guard } from "@/lib/guard";
-import { permissions, type Area } from "@/lib/auth";
+import { guard } from "@/server/guard";
+import { permissions, type Area } from "@/server/staff";
 import { notFound } from "next/navigation";
 export default async function Page({
   params,
