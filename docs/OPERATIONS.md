@@ -15,7 +15,7 @@ Set `PAYSTACK_SECRET_KEY` (a test key in staging) and the webhook URL `/api/webh
 
 ## SMS notifications (mNotify)
 
-Marking an order READY queues an SMS in the same transaction, and the app sends it immediately after responding. The worker `/api/workers/notifications` retries failures with exponential backoff (5 attempts). `vercel.json` schedules it every minute. Per-minute crons need a Vercel Pro plan; on Hobby, use an external scheduler that POSTs with `Authorization: Bearer $WORKER_SECRET`. Delivery is at-least-once. Set `MNOTIFY_API_KEY` and a provisioned sender.
+Marking an order READY queues an SMS in the same transaction, and the app sends it immediately after responding. The worker `/api/workers/notifications` retries failures with exponential backoff (5 attempts). `vercel.json` schedules it once a day, which works on every Vercel plan. For prompt retries, add an external scheduler that POSTs every minute with `Authorization: Bearer $WORKER_SECRET` (for example cron-job.org), or on Vercel Pro change the schedule to `* * * * *`. Delivery is at-least-once. Set `MNOTIFY_API_KEY` and a provisioned sender.
 
 ## Stock and metrics
 
