@@ -1,19 +1,17 @@
-import { randomUUID } from "node:crypto";
-import { handle, body, sameOrigin, rateLimit } from "@/lib/http";
-import { mutate, audit } from "@/lib/repository";
-import { createOrder } from "@/lib/domain";
-import { requireStaff } from "@/lib/auth";
+import { handle, body, sameOrigin, rateLimit } from "@/server/http";
+import { ctx } from "@/server/context";
+import { requireStaff } from "@/server/staff";
+import { createOrder } from "@/server/services/orders";
+
 export async function POST(req: Request) {
   return handle(async () => {
     sameOrigin(req);
-    await rateLimit(req, "checkout");
+    const c = ctx();
+    await rateLimit(c, req, "checkout");
     const input = await body(req);
-    const user = input.source === "WALK_IN" ? await requireStaff("pos") : null;
-    const order = await mutate((s) => {
-      const order = createOrder(s, input, randomUUID);
-      audit(s, "ORDER_CREATED", user?.id ?? "guest", order.id);
-      return order;
-    });
+    // Walk-in orders come from the POS and require a cashier session.
+    const staff = input?.source === "WALK_IN" ? await requireStaff("pos", c) : null;
+    const order = await createOrder(c, input, staff?.id ?? "guest");
     return { order };
   });
 }

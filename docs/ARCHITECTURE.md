@@ -1,29 +1,47 @@
 # Architecture
 
-Next.js App Router + React + TypeScript, Tailwind utilities and the existing warm yellow/ink design. Customer routes share a persistent cart. Kitchen, POS and management consume the same server-authoritative domain service.
+Next.js App Router on Vercel (Node runtime), Neon Postgres via Drizzle ORM, staff authentication with self-hosted Better Auth. Customers never sign in.
 
-## Boundaries
+## Layers
 
-- `lib/domain.ts`: typed records, validation, prices, lifecycle, slots and analytics.
-- `lib/seed.ts`: deterministic fictional pilot data and recipe quantities.
-- `lib/repository.ts`: local durable demo or Supabase PostgreSQL repository with optimistic concurrency. Domain mutations retry on conflicts; no external side effects inside retry loops.
-- `lib/auth.ts`: Supabase access-token verification and server-side staff membership; signed HttpOnly demo sessions only outside production.
-- `app/api`: same-origin write validation, authorization, private tracking capabilities, errors and cache policy.
-- `components`: customer, kitchen, POS and management views.
-- `supabase/migrations`: tenant-scoped storage, RLS and atomic commit functions.
+```
+app/            Pages and thin API route handlers: parse → authorize → call a service → respond
+components/     Client UI (customer, kitchen, POS, admin)
+lib/domain.ts   Shared types and pure business rules (pricing, slots, lifecycle, demand, analytics).
+                Imported by both server and browser; no I/O.
+server/         Server-only code
+  config.ts     Environment access
+  context.ts    Ctx = { db, branchId } and transaction()
+  http.ts       Error mapping, same-origin check, body limits, Postgres-backed rate limiting
+  auth.ts       Better Auth instance (email + password, sign-up disabled)
+  staff.ts      Branch membership, role permissions, staff management
+  guard.ts      Page-level redirects for staff routes
+  receipts.ts   Guest receipt capability tokens
+  mappers.ts    Row → DTO conversion
+  seed.ts       Menu/inventory and optional demo history
+  services/     One module per area: orders, catalog, inventory, payments,
+                notifications, branch (settings/revision/audit), workspace (staff snapshot)
+db/             Drizzle schema, relations, client and generated SQL migrations
+scripts/        migrate, seed, create-staff
+tests/          Unit + service tests (PGlite) and Playwright e2e
+```
 
-## Data and privacy
+Rule of thumb: business rules go in `lib/domain.ts`, anything touching the database goes in `server/services`, and routes stay thin.
 
-The server calculates money in integer pesewas. Order numbers are separate from UUIDs. A random tracking capability authorizes one guest receipt; knowing a phone or order number does not authorize reading history. Device history stores receipt capabilities; customer profiles are staff-only. Staff access is scoped to a configured restaurant and branch. Service credentials never enter browser bundles.
+## Consistency
 
-Production uses Supabase. Demo persistence is a local file, serialized in one process and explicitly unsuitable for horizontal hosting. PostgreSQL uses a revision lock to commit each branch mutation atomically. A realtime revision signal refreshes authorized views without publishing customer data; polling is a recovery path.
+Every command is one short Postgres transaction with explicit row locks:
 
-Payment initialization occurs after durable order creation. Verified Paystack webhooks confirm exact amount/currency/reference and unlock online-paid orders for kitchen work. Cash orders may enter the queue unpaid; completion requires a staff payment confirmation. Notification outbox writes are atomic with readiness; a separately authorized worker retries delivery.
+- **Checkout** locks the branch row, so order numbers are sequential and slot capacity is never exceeded under concurrent checkouts. It is idempotent on the client's `requestId`.
+- **Status changes** lock the order (then the inventory rows, then the branch). `PREPARING` deducts recipe stock; `READY` writes a notification row in the same transaction (transactional outbox).
+- **Payments** lock the order by its reference; the unique `payments.reference` makes webhooks idempotent.
 
-## Deployment
+Each write bumps `branches.revision`. Staff screens poll `/api/revision` every 2.5 s and reload the full workspace only when it changes, with a 30 s refresh as a fallback.
 
-Vercel Node runtime is the primary target. Cloudflare requires an OpenNext adapter and compatibility testing of Node crypto/filesystem imports; production must use the Supabase adapter. No demo filesystem writes are permitted in production. Run migrations, configure auth users and memberships, set secrets and schedule the notification worker before launch.
+## Security model
 
-## Proposed file changes
-
-Replace the public in-memory APIs and demo screens with typed services and shared views. Preserve the existing global style foundation. Add route aliases for menu/cart/checkout, private tracking, device history, staff login, POS and management subroutes. Add migrations, tests, PWA assets, CI, environment example and operational documentation.
+- Prices, totals and payment status are computed on the server; client values are ignored.
+- Staff: Better Auth session cookie (HttpOnly, SameSite=Strict, Secure in production), plus a `staff_members` role check on every request. Kitchen responses never include customer phone numbers.
+- Guests: a receipt link carries an HMAC token bound to the order id. Order numbers and phone numbers alone reveal nothing.
+- Cookie-authenticated writes require a matching `Origin`. Rate limits are stored in Postgres, so they hold across serverless instances.
+- Online payments are confirmed only by a signed Paystack webhook followed by an independent verify call.

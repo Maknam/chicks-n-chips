@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local Workers preview. Do not commit real credentials.
+NEXTJS_ENV=production
+APP_ORIGIN=http://localhost:8787
+DATABASE_URL=
+BETTER_AUTH_SECRET=
+WORKER_SECRET=

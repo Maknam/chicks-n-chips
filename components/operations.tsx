@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { request } from "./customer";
 import {
   type State,
@@ -13,7 +12,7 @@ export type Workspace = {
   state: State;
   role: Role;
   demo: boolean;
-  members: { user_id: string; role: string }[];
+  members: { userId: string; name: string; email: string; role: Role }[];
 };
 export function useOperations(area: string) {
   const [data, setData] = useState<Workspace | null>(null),
@@ -27,43 +26,25 @@ export function useOperations(area: string) {
       setError((e as Error).message);
     }
   }, [area]);
+  // Poll a tiny revision counter; fetch the full workspace only when something changed.
+  // A slow full refresh also runs so time-based views (late orders) stay current.
+  const revision = useRef<number | null>(null);
   useEffect(() => {
     load();
-    const timer = setInterval(load, 4000);
-    return () => clearInterval(timer);
-  }, [load]);
-  useEffect(() => {
-    if (
-      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    )
-      return;
-    // Realtime session is provided only to authenticated staff; revision payload has no PII.
-    const client = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    );
-    let channel: ReturnType<typeof client.channel> | undefined;
-    request("/api/realtime")
-      .then(async ({ token, branch }) => {
-        await client.realtime.setAuth(token);
-        channel = client
-          .channel("branch-revision")
-          .on(
-            "postgres_changes",
-            {
-              event: "UPDATE",
-              schema: "public",
-              table: "branch_revisions",
-              filter: `branch_id=eq.${branch}`,
-            },
-            load,
-          )
-          .subscribe();
-      })
-      .catch(() => {});
+    const check = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const { revision: next } = await request("/api/revision");
+        if (revision.current !== null && next !== revision.current) await load();
+        revision.current = next;
+      } catch {
+        /* the next tick retries */
+      }
+    }, 2500);
+    const refresh = setInterval(load, 30000);
     return () => {
-      if (channel) void client.removeChannel(channel);
+      clearInterval(check);
+      clearInterval(refresh);
     };
   }, [load]);
   async function action(url: string, input: unknown, method = "POST") {

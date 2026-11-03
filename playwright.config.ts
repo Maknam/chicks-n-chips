@@ -15,10 +15,11 @@ export default defineConfig({
     url: "http://localhost:3100/api/health",
     reuseExistingServer: false,
     timeout: 120000,
+    // Runs against the database in DATABASE_URL (.env.local or CI secret): use a Neon
+    // dev/preview branch seeded with `npm run db:seed -- --demo`, never production.
     env: {
-      DATA_MODE: "demo",
-      DEMO_DATA_FILE: ".data/e2e.json",
       APP_ORIGIN: "http://localhost:3100",
+      DEMO_MODE: "true",
     },
   },
 });

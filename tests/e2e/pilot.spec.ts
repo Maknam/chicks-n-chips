@@ -55,10 +55,10 @@ test("authorization, price tampering, origin checks and simultaneous capacity re
   });
   expect((await guest.get("/api/operations?area=overview")).status()).toBe(401);
   expect(
-    (await owner.post("/api/session", { data: { role: "OWNER" } })).ok(),
+    (await owner.post("/api/session", { data: { email: "owner@demo.local", password: "demo-password" } })).ok(),
   ).toBeTruthy();
   expect(
-    (await kitchen.post("/api/session", { data: { role: "KITCHEN" } })).ok(),
+    (await kitchen.post("/api/session", { data: { email: "kitchen@demo.local", password: "demo-password" } })).ok(),
   ).toBeTruthy();
   expect((await kitchen.get("/api/operations?area=customers")).status()).toBe(
     403,
@@ -120,7 +120,8 @@ test("owner pages and kitchen remain usable on small screens", async ({
   page,
 }) => {
   await page.goto("/login");
-  await page.getByLabel("Demo role").selectOption("OWNER");
+  await page.getByLabel("Email").fill("owner@demo.local");
+  await page.getByLabel("Password").fill("demo-password");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(
     page.getByRole("heading", { name: "Your eatery, at a glance." }),

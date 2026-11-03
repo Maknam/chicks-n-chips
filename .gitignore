@@ -6,3 +6,15 @@ node_modules/
 *.tsbuildinfo
 playwright-report/
 test-results/
+.open-next/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+.neon
+# Secrets and local tooling state: never commit
+.vercel/
+*.pem
+*.key
+*.p8
+secrets/
+skills-lock.json
