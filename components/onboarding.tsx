@@ -74,8 +74,8 @@ export function Setup() {
       .then((d) => setNeeded(d.needed))
       .catch(() => setNeeded(true));
   }, []);
-  const form = useForm(async ({ code, name, email, password }) => {
-    const { home } = await post("/api/setup", { code, name, email, password });
+  const form = useForm(async ({ name, email, password }) => {
+    const { home } = await post("/api/setup", { name, email, password });
     router.push(home);
     router.refresh();
   });
@@ -97,10 +97,6 @@ export function Setup() {
       <ErrorText text={form.error} />
       <form onSubmit={form.onSubmit}>
         <label>
-          Setup code
-          <input name="code" required autoComplete="one-time-code" spellCheck={false} />
-        </label>
-        <label>
           Your name
           <input name="name" required minLength={2} autoComplete="name" />
         </label>
@@ -113,7 +109,10 @@ export function Setup() {
           {form.busy ? "Creating…" : "Create owner account"}
         </button>
       </form>
-      <p className="quiet">The setup code was provided with your app. It works once.</p>
+      <p className="quiet">
+        This page works once: after the owner account exists, everyone else
+        joins with an invite link.
+      </p>
     </Shell>
   );
 }

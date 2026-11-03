@@ -20,8 +20,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "staff:create": "tsx --env-file=.env.local scripts/create-staff.ts",
-    "setup:code": "tsx --env-file=.env.local scripts/setup-code.ts"
+    "staff:create": "tsx --env-file=.env.local scripts/create-staff.ts"
   },
   "dependencies": {
     "@neon/config": "^1.10.0",

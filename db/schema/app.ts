@@ -385,8 +385,8 @@ export const auditLogs = pgTable(
   (t) => [index("audit_logs_branch_created").on(t.branchId, t.createdAt)],
 );
 
-// One-time links/codes for onboarding without email: owner setup code, staff invites,
-// password resets. Only a SHA-256 hash of the secret is stored.
+// One-time links for onboarding without email: staff invites and password resets
+// ("SETUP" is a retired owner-setup-code kind, kept so existing rows stay valid). Only a SHA-256 hash of the secret is stored.
 export const accessTokenKind = pgEnum("access_token_kind", ["SETUP", "INVITE", "RESET"]);
 export const accessTokens = pgTable(
   "access_tokens",

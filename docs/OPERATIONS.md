@@ -4,7 +4,7 @@
 
 1. **Database.** The Neon `production` branch already has the schema. Seed the menu once, using production's URL:
    `DATABASE_URL=<production pooled url> npx tsx scripts/seed.ts` (without `--demo`).
-2. **First owner.** Run `npm run setup:code` with production's `DATABASE_URL` and give the code to the owner. They create their own login at `/setup`, then invite staff from `/admin/staff` with private single-use links.
+2. **First owner.** Send the owner the app URL straight away: the first person to complete `/setup` becomes the owner, and the page then closes for good. To reserve it, set `OWNER_EMAIL` in Vercel; only that address can create the owner account. The owner then invites staff from `/admin/staff` with private single-use links.
 3. **Vercel project.** Root directory: the repository root. Connect the Neon integration (or set `DATABASE_URL` / `DATABASE_URL_UNPOOLED` by hand). Set `APP_ORIGIN` to the exact HTTPS URL, `BETTER_AUTH_SECRET` (32+ random characters), and `CRON_SECRET`.
 4. **Migrations on deploy.** Run `npm run db:migrate` before promoting a build that includes new migrations (for example as a CI step using `DATABASE_URL_UNPOOLED`).
 5. **Check.** `/api/health` returns `{"database":"ok"}`. A missing database or uninitialized branch returns 503.

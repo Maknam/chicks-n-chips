@@ -69,8 +69,7 @@ export default function Login() {
       </form>
       {setup && (
         <p className="notice">
-          New workspace? <a href="/setup">Create the owner account</a> with
-          your setup code.
+          New workspace? <a href="/setup">Create the owner account</a>.
         </p>
       )}
       <p className="quiet">
