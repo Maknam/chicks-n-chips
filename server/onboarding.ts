@@ -1,8 +1,8 @@
 // Self-service staff onboarding without email:
-// - SETUP: one-time code (issued from the CLI) lets the restaurant owner create the first OWNER account.
+// - Owner setup: the first person to complete /setup (or only OWNER_EMAIL, if set) becomes OWNER.
 // - INVITE: owner-generated link; the staff member chooses their own name and password.
 // - RESET: owner-generated link; an existing staff member sets a new password.
-// Only SHA-256 hashes of codes/links are stored. All are single-use and expire.
+// Only SHA-256 hashes of links are stored. All are single-use and expire.
 import { createHash, randomBytes } from "node:crypto";
 import { headers } from "next/headers";
 import { and, eq, gt, isNull } from "drizzle-orm";
@@ -11,10 +11,11 @@ import { accessTokens, session, staffMembers, user } from "@/db/schema";
 import { DomainError, type Role } from "@/lib/domain";
 import { getAuth } from "./auth";
 import { transaction, type Ctx } from "./context";
-import { audit, bumpRevision } from "./services/branch";
+import { audit, bumpRevision, lockBranch } from "./services/branch";
+import { config } from "./config";
 
 const HOURS = 3600_000;
-const TTL = { SETUP: 7 * 24 * HOURS, INVITE: 72 * HOURS, RESET: 24 * HOURS } as const;
+const TTL = { INVITE: 72 * HOURS, RESET: 24 * HOURS } as const;
 type Kind = keyof typeof TTL;
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -99,23 +100,21 @@ export async function hasOwner(c: Ctx) {
   return !!row;
 }
 
-/** CLI only: issues a fresh one-time owner setup code (older unused codes are revoked). */
-export async function issueSetupCode(c: Ctx) {
-  if (await hasOwner(c)) throw new Error("This branch already has an owner. Owners invite staff from /admin/staff.");
-  await c.db
-    .update(accessTokens)
-    .set({ usedAt: new Date() })
-    .where(and(eq(accessTokens.branchId, c.branchId), eq(accessTokens.kind, "SETUP"), isNull(accessTokens.usedAt)));
-  return issue(c, "SETUP", "cli");
-}
+const setupInput = z.object({ name, email, password });
 
-const setupInput = z.object({ code: z.string().trim().min(10).max(100), name, email, password });
-
+/**
+ * Creates the first OWNER. Open only while the branch has no owner; if OWNER_EMAIL is
+ * configured, only that address may claim it. Closes permanently once an owner exists.
+ */
 export async function completeSetup(c: Ctx, raw: unknown) {
   const input = setupInput.parse(raw);
+  const reserved = config.ownerEmail();
+  if (reserved && input.email !== reserved)
+    throw new DomainError("Use the owner email address this workspace was set up for.", 403);
   await transaction(c, async (t) => {
+    // Serializes simultaneous attempts: only one can become the first owner.
+    await lockBranch(t);
     if (await hasOwner(t)) throw new DomainError("This workspace is already set up. Sign in instead.", 409);
-    await claim(t, "SETUP", input.code);
     const taken = await t.db.query.user.findFirst({ where: eq(user.email, input.email) });
     if (taken) throw new DomainError("An account with this email already exists.", 409);
     const userId = await createAccount(input.name, input.email, input.password);
@@ -175,7 +174,7 @@ export async function describeLink(c: Ctx, token: string) {
       gt(accessTokens.expiresAt, new Date()),
     ),
   });
-  if (!row || row.kind === "SETUP") throw new DomainError("This link is invalid, already used or expired.", 410);
+  if (!row || (row.kind !== "INVITE" && row.kind !== "RESET")) throw new DomainError("This link is invalid, already used or expired.", 410);
   if (row.kind === "RESET") {
     const account = await c.db.query.user.findFirst({ where: eq(user.id, row.userId!) });
     return { kind: row.kind, email: account?.email ?? "", name: account?.name ?? "", role: null };
@@ -190,7 +189,7 @@ export async function acceptLink(c: Ctx, raw: unknown) {
   const context = await getAuth().$context;
   const result = await transaction(c, async (t) => {
     const preview = await describeLink(t, input.token);
-    const row = await claim(t, preview.kind, input.token);
+    const row = await claim(t, preview.kind as Kind, input.token);
     if (row.kind === "RESET") {
       await context.internalAdapter.updatePassword(row.userId!, await context.password.hash(input.password));
       // Sign out everywhere else: the old password may be compromised.

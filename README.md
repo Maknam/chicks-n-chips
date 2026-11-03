@@ -22,12 +22,12 @@ npm run dev
 
 ## Client onboarding (no email service needed)
 
-1. Issue a one-time owner setup code for the database: `npm run setup:code` (valid 7 days, single use).
-2. Give the owner the app URL and the code. They open `/setup` and create their own owner login.
+1. Send the owner the app URL. They open `/setup` and create their own owner login. The first account created there becomes the owner, and `/setup` then closes for good.
+2. Optional: set `OWNER_EMAIL` in Vercel so only that address can create the owner account.
 3. The owner invites staff from **Admin → Staff**. Each invite is a private link (`/join#…`, valid 72 h, single use) where the person chooses their own password.
 4. Forgotten password: the owner clicks **Reset link** next to the member (valid 24 h). Everyone can change their own password at `/account`.
 
-Only hashes of codes and links are stored. `/setup` closes permanently once an owner exists.
+Only hashes of invite and reset links are stored.
 
 ## Commands
 
@@ -40,7 +40,6 @@ Only hashes of codes and links are stored. `/setup` closes permanently once an o
 | `npm run db:generate` | Create a migration after editing `db/schema/*` |
 | `npm run db:migrate` | Apply migrations to the branch in `.env.local` |
 | `npm run db:seed [-- --demo]` | Seed menu/inventory (`--demo`: fictional data — never production) |
-| `npm run setup:code` | One-time code for the owner to create their own account at `/setup` |
 | `npm run staff:create -- --email … --name … --role OWNER --password …` | Fallback: create an account from the CLI |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/DATABASE.md](docs/DATABASE.md) and [docs/OPERATIONS.md](docs/OPERATIONS.md).

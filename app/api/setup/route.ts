@@ -9,7 +9,7 @@ export async function GET() {
   return handle(async () => ({ needed: !(await hasOwner(ctx())) }));
 }
 
-/** Creates the first OWNER with a one-time setup code, then signs them in. */
+/** Creates the first OWNER (only while none exists), then signs them in. */
 export async function POST(req: Request) {
   return handle(async () => {
     sameOrigin(req);

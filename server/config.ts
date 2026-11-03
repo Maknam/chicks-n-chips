@@ -20,6 +20,8 @@ export const config = {
       vercelUrl(process.env.VERCEL_BRANCH_URL),
       vercelUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL),
     ].filter((o): o is string => !!o),
+  /** If set, only this email may create the first owner account at /setup. */
+  ownerEmail: () => process.env.OWNER_EMAIL?.trim().toLowerCase() || "",
   isProduction: () => process.env.NODE_ENV === "production",
   /** Labels the UI as fictional data (staging/dev seeded with --demo). Changes no behaviour. */
   demoLabel: () => process.env.DEMO_MODE === "true",
