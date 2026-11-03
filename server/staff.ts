@@ -29,9 +29,13 @@ export const homeFor = (role: Role) =>
 export type StaffUser = { id: string; name: string; email: string; role: Role };
 
 /** The signed-in staff member for this branch, or null. Membership is checked on every call. */
-export async function currentStaff(c: Ctx = ctx()): Promise<StaffUser | null> {
-  const result = await getAuth().api.getSession({ headers: await headers() });
+export async function currentStaff(c?: Ctx): Promise<StaffUser | null> {
+  // Read request headers before touching the database: this marks pages as dynamic,
+  // so `next build` never opens a connection while prerendering.
+  const requestHeaders = await headers();
+  const result = await getAuth().api.getSession({ headers: requestHeaders });
   if (!result) return null;
+  c ??= ctx();
   const member = await c.db.query.staffMembers.findFirst({
     where: and(eq(staffMembers.userId, result.user.id), eq(staffMembers.branchId, c.branchId)),
   });
@@ -39,7 +43,7 @@ export async function currentStaff(c: Ctx = ctx()): Promise<StaffUser | null> {
   return { id: result.user.id, name: result.user.name, email: result.user.email, role: member.role };
 }
 
-export async function requireStaff(area: Area, c: Ctx = ctx()) {
+export async function requireStaff(area: Area, c?: Ctx) {
   const staff = await currentStaff(c);
   if (!staff) throw new DomainError("Please sign in", 401);
   if (!canAccess(staff.role, area)) throw new DomainError("Your role cannot access this area", 403);
