@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { money, time, type Order } from "@/lib/domain";
+import { money, pickupLabel, STATUS_LABEL, type Order } from "@/lib/domain";
+import BottomNav from "./bottom-nav";
 import { request, type CartLine } from "./customer";
 export function reorder(order: Order) {
   const cart: CartLine[] = order.items.map((i, n) => ({
@@ -102,16 +103,23 @@ export default function Tracking({ number }: { number: string }) {
       ) : (
         <>
           <div aria-live="polite">
-            <h2>
+            <span className={`status ${order.status.toLowerCase()}`}>
+              {STATUS_LABEL[order.status]}
+            </span>
+            <h2 className="trackHeadline">
               {order.status === "READY"
                 ? "Fresh, hot, ready for you."
                 : order.status === "COMPLETED"
                   ? "Enjoy your meal!"
-                  : order.status.replace("_", " ")}
+                  : order.status === "PREPARING"
+                    ? "Your food is on the grill."
+                    : ["CANCELLED", "REJECTED"].includes(order.status)
+                      ? "This order was cancelled."
+                      : "We’ve got your order."}
             </h2>
-            <p>
-              Pickup: <b>{time(order.pickupAt)}</b> ·{" "}
-              {order.pickupAt.slice(0, 10)}
+            <p className="pickupWhen">
+              Pickup <b>{pickupLabel(order.pickupAt)}</b> · Chics & Chips, Pent
+              Hall
             </p>
             {!["CANCELLED", "REJECTED"].includes(order.status) && (
               <ol className="steps">
@@ -126,7 +134,9 @@ export default function Tracking({ number }: { number: string }) {
                           : ""
                     }
                   >
-                    {i < steps.indexOf(order.status) ? "✓" : i + 1}{" "}
+                    <span className="stepDot" aria-hidden>
+                      {i < steps.indexOf(order.status) ? "✓" : i + 1}
+                    </span>
                     {
                       [
                         "Received",
@@ -204,6 +214,7 @@ export default function Tracking({ number }: { number: string }) {
           </p>
         </>
       )}
+      <BottomNav />
     </main>
   );
 }
@@ -223,9 +234,12 @@ export function History({ profile = false }: { profile?: boolean }) {
         }),
       ),
     ).then((results) => {
+      // The API never returns receipt tokens; rejoin the ones saved on this device.
       setOrders(
-        results.flatMap((r) =>
-          r.status === "fulfilled" ? [r.value.order] : [],
+        results.flatMap((r, i) =>
+          r.status === "fulfilled"
+            ? [{ ...r.value.order, token: receipts[i].token }]
+            : [],
         ),
       );
       if (results.some((r) => r.status === "rejected"))
@@ -268,10 +282,13 @@ export function History({ profile = false }: { profile?: boolean }) {
       ) : (
         orders.map((o) => (
           <article className="panel" key={o.id}>
-            <span className="badge">{o.status}</span>
+            <span className={`status ${o.status.toLowerCase()}`}>
+              {STATUS_LABEL[o.status]}
+            </span>
             <h2>
               #{o.number} · {money(o.total)}
             </h2>
+            <p className="quiet">Pickup {pickupLabel(o.pickupAt)}</p>
             <p>{o.items.map((i) => `${i.qty} × ${i.name}`).join(", ")}</p>
             <div className="rowActions">
               <a className="primary" href={`/order/${o.number}#${o.token}`}>
@@ -289,6 +306,7 @@ export function History({ profile = false }: { profile?: boolean }) {
           </article>
         ))
       )}
+      <BottomNav />
     </main>
   );
 }

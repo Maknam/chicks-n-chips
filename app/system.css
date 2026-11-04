@@ -552,3 +552,482 @@ legend {
     transition: none !important;
   }
 }
+
+/* ==========================================================================
+   UI refresh: menu cards, mobile navigation, PWA safe areas, tracking, POS.
+   Loaded last on purpose: these rules supersede the earlier ones above.
+   ========================================================================== */
+
+:root {
+  --muted: #766d61;
+  --shadow: 0 1px 2px #4b321008, 0 10px 30px #4b32100d;
+  --tabbar: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+::placeholder {
+  color: #a89d8d;
+  font-weight: 400;
+  opacity: 1;
+}
+/* Standalone PWA on notched phones: keep the sticky header clear of the status bar. */
+.top {
+  padding-top: env(safe-area-inset-top, 0px);
+  height: calc(74px + env(safe-area-inset-top, 0px));
+  backdrop-filter: saturate(1.4) blur(8px);
+  background: #fffaf0ee;
+}
+
+/* ---------- Menu cards: fixed photo ratio, aligned prices ---------- */
+.grid {
+  align-items: stretch;
+}
+.food {
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+@media (hover: hover) {
+  .food:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      0 2px 4px #4b32100d,
+      0 18px 40px #4b321016;
+  }
+}
+.foodImg,
+.customImage {
+  position: relative;
+  display: block;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f6e7c4, #efd9a8);
+}
+.customImage {
+  aspect-ratio: 16 / 10;
+  border-radius: 18px;
+  margin-bottom: 4px;
+}
+.foodImg img,
+.customImage img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.foodImg > .foodFallback,
+.customImage > .foodFallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #b07a1c;
+  /* undo the "15 min" pill styling that targets spans inside .foodImg */
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: inherit;
+}
+.foodImg > span:not(.foodFallback) {
+  z-index: 1;
+  box-shadow: 0 2px 8px #0000001a;
+}
+.foodImg > span.alert {
+  background: #17130f;
+  color: #ffd447;
+}
+.foodBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.foodBody p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 0;
+}
+.price {
+  margin-top: auto;
+  padding-top: 10px;
+}
+.price button {
+  transition: transform 0.12s ease;
+}
+.price button:active {
+  transform: scale(0.92);
+}
+.food.soldOut .foodImg img {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.food.soldOut .price button {
+  background: #d8cfc0;
+  color: #fff;
+}
+
+/* ---------- Bottom sheets ---------- */
+.sheet {
+  max-height: min(92vh, 92dvh);
+  padding-bottom: calc(28px + var(--safe-bottom));
+  overscroll-behavior: contain;
+  animation: sheetUp 0.22s ease-out;
+}
+@keyframes sheetUp {
+  from {
+    transform: translateY(24px);
+    opacity: 0.6;
+  }
+}
+
+/* ---------- POS: its bar scrolls away; the menu header stays sticky ---------- */
+.posBar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 10px max(5vw, 16px);
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  background: #17130f;
+  color: #fffaf0;
+}
+.posBar > a {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 750;
+  text-decoration: none;
+  color: #ffd447;
+}
+.segmented {
+  display: inline-flex;
+  background: #2d271f;
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+}
+.segmented button {
+  border: 0;
+  background: transparent;
+  color: #d7cec0;
+  padding: 8px 14px;
+  min-height: 38px;
+  border-radius: 9px;
+  font-weight: 750;
+}
+.segmented button.active {
+  background: #ffd447;
+  color: #17130f;
+}
+
+/* ---------- Tracking ---------- */
+.trackHeadline {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  margin: 12px 0 6px;
+}
+.pickupWhen {
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+.pickupWhen b {
+  color: #17130f;
+}
+.steps {
+  gap: 0;
+  margin: 26px 0;
+}
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: transparent;
+  padding: 10px 0;
+  color: #9a8f80;
+  border-radius: 0;
+  position: relative;
+}
+.steps li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 46px;
+  bottom: -10px;
+  width: 2px;
+  background: #e4dac8;
+}
+.steps li.done::after {
+  background: #7cb87a;
+}
+.stepDot {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #efe7d8;
+  font-size: 14px;
+  z-index: 1;
+}
+.steps li.done,
+.steps li.current {
+  background: transparent;
+  color: #17130f;
+}
+.steps li.done .stepDot {
+  background: #dff0dc;
+  color: #2c612a;
+}
+.steps li.current .stepDot {
+  background: #ffd447;
+  box-shadow: 0 0 0 6px #ffd44740;
+}
+.tracking .panel h2 {
+  margin: 10px 0 4px;
+}
+
+/* ---------- Phones ---------- */
+@media (max-width: 650px) {
+  .hideOnPhone {
+    display: none;
+  }
+  /* Compact hero so the first dishes show on the first screen. */
+  .hero {
+    min-height: 0;
+    padding: 26px 20px 30px;
+    gap: 0;
+  }
+  .hero h1 {
+    font-size: clamp(36px, 11vw, 44px);
+    margin: 16px 0 12px;
+  }
+  .hero p {
+    font-size: 16px;
+    margin: 0 0 18px;
+  }
+  /* The menu starts right below the hero on phones, so its scroll button is redundant. */
+  .hero .primary {
+    display: none;
+  }
+  .hero p {
+    margin-bottom: 0;
+  }
+  .menu {
+    padding: 26px 16px calc(var(--tabbar) + 110px + var(--safe-bottom));
+  }
+  .sectionTitle {
+    align-items: start;
+  }
+  .sectionTitle h2 {
+    font-size: 26px;
+  }
+  .sectionTitle > .muted {
+    display: none;
+  }
+  .search {
+    margin-top: 16px;
+  }
+  .cats {
+    padding: 14px 16px;
+    margin: 0 -16px;
+    scrollbar-width: none;
+  }
+  .cats::-webkit-scrollbar {
+    display: none;
+  }
+  .grid {
+    gap: 12px;
+  }
+  .foodBody {
+    padding: 11px 12px 12px;
+  }
+  .foodBody h3 {
+    font-size: 15px;
+    line-height: 1.25;
+  }
+  .price {
+    font-size: 16px;
+  }
+  .price button {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Tab bar */
+  .bottomNav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 25;
+    height: calc(var(--tabbar) + var(--safe-bottom));
+    padding: 6px 4px var(--safe-bottom);
+    background: #fffaf0f2;
+    backdrop-filter: saturate(1.4) blur(10px);
+    border-top: 1px solid var(--line);
+  }
+  .bottomNav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #8b8174;
+  }
+  .bottomNav a.active {
+    color: #17130f;
+  }
+  .bottomNav a.active .tabIcon {
+    background: #ffd447;
+  }
+  .tabIcon {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 30px;
+    border-radius: 999px;
+    transition: background 0.15s ease;
+  }
+  .tabBadge {
+    position: absolute;
+    top: -4px;
+    right: 6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #17130f;
+    color: #ffd447;
+    font-size: 10px;
+    font-weight: 800;
+    font-style: normal;
+    line-height: 18px;
+    text-align: center;
+  }
+  .cartbar {
+    bottom: calc(var(--tabbar) + var(--safe-bottom) + 10px);
+    width: calc(100% - 24px);
+    padding: 14px 16px;
+    font-size: 15px;
+  }
+  .install {
+    bottom: calc(var(--tabbar) + var(--safe-bottom) + 10px);
+  }
+  footer {
+    padding-bottom: calc(35px + var(--tabbar) + var(--safe-bottom));
+  }
+  .tracking {
+    padding: 24px 18px calc(var(--tabbar) + 40px + var(--safe-bottom));
+  }
+  .tracking h1 {
+    font-size: 36px;
+    margin: 8px 0 14px;
+  }
+  .trackHeadline {
+    font-size: 24px;
+  }
+  .receipt {
+    padding: 18px;
+  }
+
+  /* POS */
+  .segmented {
+    order: 3;
+    width: 100%;
+  }
+  .segmented button {
+    flex: 1;
+  }
+
+  /* Team list: one card per member instead of a table wider than the screen. */
+  .memberTable thead {
+    display: none;
+  }
+  .memberTable,
+  .memberTable tbody,
+  .memberTable tr,
+  .memberTable td {
+    display: block;
+    width: 100%;
+  }
+  .memberTable tr {
+    padding: 12px 0;
+    border-bottom: 1px solid #eee3d1;
+  }
+  .memberTable td {
+    border: 0;
+    padding: 3px 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .memberTable td[data-label="Email"] {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .memberTable select {
+    width: 100%;
+    margin-top: 6px;
+  }
+  .memberActions {
+    display: flex !important;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .memberActions button {
+    flex: 1;
+  }
+
+  /* Staff workspace on phones: keep sign-out reachable, hint that tabs scroll. */
+  .sidebar > button {
+    display: inline-flex;
+    margin: 0;
+    align-self: flex-start;
+    min-height: 36px;
+    padding: 6px 12px;
+  }
+  .sidebar nav {
+    mask-image: linear-gradient(90deg, #000 85%, transparent);
+    scrollbar-width: none;
+    padding-right: 24px;
+  }
+  .sidebar nav::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Wide tables never widen the page: grid columns may shrink and cards scroll sideways. */
+.twoColumns > *,
+.workspace > *,
+.panel {
+  min-width: 0;
+}
+.panel:has(> .dataTable),
+.panel:has(> table) {
+  overflow-x: auto;
+}
+@media (max-width: 1000px) {
+  .twoColumns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Small tablets: 3 columns read better than 2 stretched cards. */
+@media (min-width: 651px) and (max-width: 1000px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
