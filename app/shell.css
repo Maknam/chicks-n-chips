@@ -1,0 +1,414 @@
+/* ==========================================================================
+   Admin shell (components/layout/admin-shell.tsx) — uses tokens from tokens.css.
+   ≥1024px: fixed 248px sidebar. <1024px: sticky top bar + modal drawer.
+   ========================================================================== */
+.adminShell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--canvas);
+  color: var(--text-primary);
+}
+.shellSidebar,
+.shellDrawerPanel {
+  display: flex;
+  flex-direction: column;
+  background: var(--brand-900);
+  color: var(--text-on-dark);
+}
+.shellSidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+}
+.shellBrand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 80px;
+  padding: var(--space-4) var(--space-5);
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid var(--brand-700);
+}
+.shellLogo {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: var(--accent-500);
+  color: var(--brand-900);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -0.02em;
+}
+.shellBrand b {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.shellBrand small {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-on-dark-muted);
+  margin-top: 2px;
+}
+.shellNav {
+  display: block; /* override the legacy global `nav { display: flex }` */
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-3) var(--space-4);
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-700) transparent;
+}
+.navGroup + .navGroup {
+  margin-top: var(--space-5);
+}
+.navGroupLabel {
+  padding: 0 var(--space-3) var(--space-2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-on-dark-muted);
+}
+.navItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 42px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  color: #d9d3c9;
+  text-decoration: none;
+  font-size: var(--text-base);
+  font-weight: 500;
+  transition:
+    background 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+.navItem svg {
+  flex: none;
+  color: var(--text-on-dark-muted);
+}
+.navItem:hover {
+  background: var(--brand-800);
+  color: #fff;
+}
+.navItem:hover svg {
+  color: #fff;
+}
+.navItem:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.navItem.active {
+  background: rgba(245, 184, 0, 0.12);
+  color: #fff;
+  font-weight: 600;
+}
+.navItem.active::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--accent-500);
+}
+.navItem.active svg {
+  color: var(--accent-500);
+}
+.navLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.navTrail {
+  color: var(--text-on-dark-muted);
+  opacity: 0.7;
+}
+.navCount {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-500);
+  color: var(--brand-900);
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.shellFoot {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--brand-700);
+}
+.shellUser {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--brand-800);
+}
+.avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #4a3d2b;
+  color: var(--accent-500);
+  font-size: 12px;
+  font-weight: 700;
+}
+.shellUserText {
+  flex: 1;
+  min-width: 0;
+}
+.shellUserText b,
+.shellUserText small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shellUserText b {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.shellUserText small {
+  font-size: var(--text-xs);
+  color: var(--text-on-dark-muted);
+}
+.iconBtn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.iconBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.iconBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.shellMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.shellTopbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--topbar-height);
+  padding: 0 var(--space-8);
+  background: rgba(247, 248, 250, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-default);
+}
+.menuBtn {
+  display: none;
+  color: var(--text-primary);
+  margin-left: -8px;
+}
+.menuBtn:hover {
+  background: var(--surface-subtle);
+}
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.crumbs a {
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.crumbs a:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.crumbs [aria-current] {
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.topbarStatus {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.shellContent {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-wide);
+  margin: 0 auto;
+  padding: var(--space-8);
+}
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+.pageHeader h1 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.pageHeader p {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 640px;
+}
+.pageActions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* Drawer (small screens) */
+.shellDrawer {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  width: min(300px, 86vw);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  background: transparent;
+}
+.shellDrawer::backdrop {
+  background: rgba(23, 19, 14, 0.5);
+}
+.shellDrawer[open] .shellDrawerPanel {
+  animation: drawer-in 0.2s var(--ease);
+}
+.shellDrawerPanel {
+  position: relative;
+  height: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.drawerClose {
+  position: absolute;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  right: 10px;
+  z-index: 1;
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+/* Older admin content inside the new shell: align it with the token palette
+   until each page is rebuilt (Milestone 4). */
+.adminShell .panel,
+.adminShell .kpi,
+.adminShell .metricGrid div {
+  border-color: var(--border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.adminShell .panel {
+  margin-top: 0;
+}
+.adminShell .shellContent > .panel + .panel,
+.adminShell .shellContent > .twoColumns {
+  margin-top: var(--space-5);
+}
+
+@media (max-width: 1279px) {
+  .shellContent {
+    padding: var(--space-6);
+  }
+  .shellTopbar {
+    padding: 0 var(--space-6);
+  }
+}
+@media (max-width: 1023px) {
+  .adminShell {
+    display: block;
+  }
+  .shellSidebar {
+    display: none;
+  }
+  .menuBtn {
+    display: grid;
+  }
+  .shellTopbar {
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) var(--space-4) 0;
+  }
+}
+@media (max-width: 767px) {
+  .shellContent {
+    padding: var(--space-4);
+  }
+  .crumbs a,
+  .crumbs svg {
+    display: none;
+  }
+  .pageHeader h1 {
+    font-size: 24px;
+  }
+  .topbarStatus .ui-badge {
+    padding: 0 8px;
+  }
+}
+@media print {
+  .shellSidebar,
+  .shellTopbar,
+  .shellDrawer {
+    display: none !important;
+  }
+  .adminShell {
+    display: block;
+    background: #fff;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shellDrawer[open] .shellDrawerPanel {
+    animation: none;
+  }
+}

@@ -53,7 +53,7 @@ const ErrorText = ({ text }: { text: string }) =>
     </p>
   ) : null;
 
-const NewPassword = () => (
+export const NewPassword = () => (
   <>
     <label>
       Password (10+ characters)

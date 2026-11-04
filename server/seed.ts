@@ -16,6 +16,7 @@ import {
   restaurants,
 } from "@/db/schema";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID } from "./config";
+import { generateTrackingCode } from "./tracking";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
@@ -142,6 +143,7 @@ async function seedDemoHistory(db: DB, branchId: string) {
       branchId,
       number: 1000 + i,
       requestId: uuid(900 + i),
+      trackingCode: generateTrackingCode(),
       customerId: customer.id,
       customerName: customer.name,
       customerPhone: customer.phone,

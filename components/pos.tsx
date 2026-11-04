@@ -3,6 +3,7 @@ import { useState } from "react";
 import Customer from "./customer";
 import { useOperations } from "./operations";
 import { money, time, STATUS_LABEL } from "@/lib/domain";
+import { printReceipt } from "@/lib/receipt";
 export default function POS() {
   const [tab, setTab] = useState("order");
   const { data, error, busy, action } = useOperations("pos");
@@ -31,7 +32,7 @@ export default function POS() {
         <a href="/admin/orders">Orders ↗</a>
       </div>
       {tab === "order" ? (
-        <Customer pos />
+        <Customer pos printer={data ? { business: data.state.business, receipt: data.state.receipt } : undefined} />
       ) : (
         <main className="dash">
           <h1>Payments & pickup</h1>
@@ -98,7 +99,9 @@ export default function POS() {
                         Hand over
                       </button>
                     )}
-                    <button onClick={() => window.print()}>Print</button>
+                    <button onClick={() => data && printReceipt(o, data.state.business, data.state.receipt)}>
+                      Print receipt
+                    </button>
                   </div>
                 </article>
               ))}

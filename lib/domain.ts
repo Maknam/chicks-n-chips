@@ -62,6 +62,8 @@ export type Order = {
   number: number;
   /** Raw receipt capability. Only populated in the checkout response. */
   token: string;
+  /** Public tracking code (see lib/tracking.ts). Staff views and the checkout response only. */
+  trackingCode: string;
   requestId: string;
   customerId: string;
   customer: string;
@@ -124,11 +126,58 @@ export type Settings = {
   capacity: number;
   basePrep: number;
 };
+/** Business identity, printed on receipts and shown in the workspace. */
+export type Business = { name: string; branch: string; phone: string; address: string };
+/** What a thermal receipt shows and how it is laid out. */
+export type ReceiptSettings = {
+  paperWidth: "58" | "80";
+  textSize: "normal" | "large";
+  showBusinessName: boolean;
+  showBranch: boolean;
+  showAddress: boolean;
+  showPhone: boolean;
+  header: string;
+  showOrderTime: boolean;
+  showOrderSource: boolean;
+  showCustomerName: boolean;
+  showCustomerPhone: boolean;
+  showPickupTime: boolean;
+  showItemOptions: boolean;
+  showPaymentMethod: boolean;
+  showPaymentStatus: boolean;
+  showTrackingCode: boolean;
+  showTrackingQr: boolean;
+  footer: string;
+  autoPrint: boolean;
+};
+export const RECEIPT_DEFAULTS: ReceiptSettings = {
+  paperWidth: "80",
+  textSize: "normal",
+  showBusinessName: true,
+  showBranch: true,
+  showAddress: true,
+  showPhone: true,
+  header: "",
+  showOrderTime: true,
+  showOrderSource: true,
+  showCustomerName: true,
+  showCustomerPhone: false,
+  showPickupTime: true,
+  showItemOptions: true,
+  showPaymentMethod: true,
+  showPaymentStatus: true,
+  showTrackingCode: true,
+  showTrackingQr: false,
+  footer: "Thank you! Enjoy your meal.",
+  autoPrint: false,
+};
 /** A role-filtered snapshot of one branch, as served to staff workspaces. */
 export type State = {
   revision: number;
   nextNumber: number;
   settings: Settings;
+  business: Business;
+  receipt: ReceiptSettings;
   products: Product[];
   orders: Order[];
   customers: Customer[];
@@ -240,6 +289,41 @@ export const settingsInput = z
   })
   .refine((x) => x.close > x.open, "Closing time must be after opening time");
 
+const flag = z.boolean();
+export const receiptInput = z.object({
+  paperWidth: z.enum(["58", "80"]),
+  textSize: z.enum(["normal", "large"]),
+  showBusinessName: flag,
+  showBranch: flag,
+  showAddress: flag,
+  showPhone: flag,
+  header: z.string().trim().max(120),
+  showOrderTime: flag,
+  showOrderSource: flag,
+  showCustomerName: flag,
+  showCustomerPhone: flag,
+  showPickupTime: flag,
+  showItemOptions: flag,
+  showPaymentMethod: flag,
+  showPaymentStatus: flag,
+  showTrackingCode: flag,
+  showTrackingQr: flag,
+  footer: z.string().trim().max(200),
+  autoPrint: flag,
+});
+/** Stored receipt settings merged over defaults; unknown or invalid keys fall back. */
+export function toReceiptSettings(stored: unknown): ReceiptSettings {
+  const merged = { ...RECEIPT_DEFAULTS, ...(stored && typeof stored === "object" ? stored : {}) };
+  const parsed = receiptInput.safeParse(merged);
+  return parsed.success ? parsed.data : RECEIPT_DEFAULTS;
+}
+export const businessInput = z.object({
+  name: z.string().trim().min(2, "Business name is too short").max(60),
+  branch: z.string().trim().min(2, "Branch name is too short").max(60),
+  phone: z.string().trim().max(30),
+  address: z.string().trim().max(120),
+});
+
 // ---------- Pricing ----------
 
 /** Server-authoritative pricing. The client's displayed prices are never trusted. */
@@ -305,6 +389,9 @@ export function buildSlots(
     }
   return result;
 }
+/** Pickup slots per day — the same rule as buildSlots (a final partial slot still counts). */
+export const slotsPerDay = (s: Pick<Settings, "open" | "close" | "interval">) =>
+  s.close > s.open ? Math.ceil(((s.close - s.open) * 60) / Math.max(1, s.interval)) : 0;
 export const slotWindow = (now = new Date()) => {
   const from = new Date(now);
   from.setUTCHours(0, 0, 0, 0);

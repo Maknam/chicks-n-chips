@@ -17,13 +17,22 @@ export type Workspace = {
 export function useOperations(area: string) {
   const [data, setData] = useState<Workspace | null>(null),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [loading, setLoading] = useState(false),
+    [updatedAt, setUpdatedAt] = useState<number | null>(null),
+    [failed, setFailed] = useState(false);
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       setData(await request(`/api/operations?area=${area}`));
       setError("");
+      setFailed(false);
+      setUpdatedAt(Date.now());
     } catch (e) {
       setError((e as Error).message);
+      setFailed(true);
+    } finally {
+      setLoading(false);
     }
   }, [area]);
   // Poll a tiny revision counter; fetch the full workspace only when something changed.
@@ -64,7 +73,7 @@ export function useOperations(area: string) {
       setBusy(false);
     }
   }
-  return { data, error, busy, load, action };
+  return { data, error, busy, load, action, loading, updatedAt, failed };
 }
 export default function Kitchen() {
   const { data, error, busy, load, action } = useOperations("kitchen");

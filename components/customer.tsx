@@ -8,16 +8,25 @@ import {
   X,
   Clock3,
   MapPin,
+  CheckCircle2,
+  ArrowRight,
 } from "lucide-react";
 import {
   money,
   time,
+  pickupLabel,
   type Product,
   type Order,
   type OrderInput,
+  type Business,
+  type ReceiptSettings,
 } from "@/lib/domain";
+import { printReceipt } from "@/lib/receipt";
+import { trackingPath } from "@/lib/tracking";
 import FoodPhoto from "./food-photo";
 import BottomNav from "./bottom-nav";
+import CustomerHeader from "./customer-header";
+import { TrackingCodeCard } from "./order-progress";
 export type CartLine = {
   key: string;
   productId: string;
@@ -36,12 +45,13 @@ export function saveReceipt(order: Order) {
   const receipts = JSON.parse(localStorage.getItem("cc-receipts") || "[]") as {
     number: number;
     token: string;
+    code?: string;
   }[];
   localStorage.setItem(
     "cc-receipts",
     JSON.stringify(
       [
-        { number: order.number, token: order.token },
+        { number: order.number, token: order.token, code: order.trackingCode },
         ...receipts.filter((r) => r.number !== order.number),
       ].slice(0, 50),
     ),
@@ -56,9 +66,12 @@ export async function request(url: string, options?: RequestInit) {
 export default function Customer({
   view = "menu",
   pos = false,
+  printer,
 }: {
   view?: string;
   pos?: boolean;
+  /** POS only: business details and receipt layout for printing. */
+  printer?: { business: Business; receipt: ReceiptSettings };
 }) {
   const [menu, setMenu] = useState<Menu | null>(null),
     [error, setError] = useState(""),
@@ -188,6 +201,7 @@ export default function Customer({
       });
       saveReceipt(order);
       setPlaced(order);
+      if (pos && printer?.receipt.autoPrint) printReceipt(order, printer.business, printer.receipt);
       setCart([]);
       setCheckout(false);
       setRequestId(crypto.randomUUID());
@@ -198,8 +212,25 @@ export default function Customer({
     }
   }
   const categories = ["All", ...new Set(menu?.products.map((p) => p.category))];
+  const q = query.trim().toLowerCase();
+  const visible = (menu?.products ?? []).filter(
+    (p) =>
+      (category === "All" || p.category === category) &&
+      (!q || `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(q)),
+  );
+  // Browsing everything: one heading per category. Filtering or searching: a single grid.
+  const groups: [string, Product[]][] =
+    category === "All" && !q
+      ? categories
+          .slice(1)
+          .map((c) => [c, visible.filter((p) => p.category === c)] as [string, Product[]])
+          .filter(([, items]) => items.length > 0)
+      : [[category === "All" ? "Results" : category, visible]];
   return (
     <main>
+      {!pos ? (
+        <CustomerHeader count={count} onBag={() => setCheckout(true)} />
+      ) : (
       <header className="top">
         <a className="brand brandLink" href="/">
           <span className="brandMark">C&C</span>
@@ -217,6 +248,7 @@ export default function Customer({
           <a href={pos ? "/kitchen" : "/login"}>{pos ? "Kitchen" : "Staff"}</a>
         </nav>
       </header>
+      )}
       {menu?.demo && (
         <div className="demoBanner">
           Demo workspace · fictional orders · no real payments
@@ -237,14 +269,22 @@ export default function Customer({
               Your favourites, freshly made. Choose a pickup time and we’ll keep
               you posted.
             </p>
-            <a className="primary" href="#menu">
-              Find your next meal <ShoppingBag size={18} />
-            </a>
+            <div className="heroActions">
+              <a className="primary" href="#menu">
+                See the menu <ArrowRight size={18} aria-hidden />
+              </a>
+              <a className="heroLink" href="/orders">
+                Track an order
+              </a>
+            </div>
           </div>
           <div className="heroPhoto">
             <img
-              src="https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=1000&q=85"
+              src="https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=900&q=80"
+              srcSet="https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=600&q=75 600w, https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=900&q=80 900w"
+              sizes="(max-width: 760px) 100vw, 45vw"
               alt="Crispy chicken served fresh"
+              fetchPriority="high"
             />
             <span>
               Good food.
@@ -277,6 +317,7 @@ export default function Customer({
         <div className="search">
           <Search size={18} />
           <input
+            type="search"
             aria-label="Search menu"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -287,7 +328,9 @@ export default function Customer({
           {categories.map((c) => (
             <button
               key={c}
+              type="button"
               className={category === c ? "active" : ""}
+              aria-pressed={category === c}
               onClick={() => setCategory(c)}
             >
               {c}
@@ -300,65 +343,84 @@ export default function Customer({
               <div key={i} className="skeleton" />
             ))}
           </div>
+        ) : visible.length === 0 ? (
+          <p className="empty">
+            No meals match your search. Try another word or{" "}
+            <button
+              type="button"
+              className="linkBtn"
+              onClick={() => {
+                setQuery("");
+                setCategory("All");
+              }}
+            >
+              show everything
+            </button>
+            .
+          </p>
         ) : (
-          <div className="grid">
-            {menu.products
-              .filter(
-                (p) =>
-                  (category === "All" || p.category === category) &&
-                  p.name.toLowerCase().includes(query.toLowerCase()),
-              )
-              .map((p, index) => (
-                <article
-                  className={`food${p.availability === "SOLD_OUT" ? " soldOut" : ""}`}
-                  key={p.id}
-                >
-                  <div className="foodImg">
-                    <FoodPhoto src={p.image} alt={p.name} eager={index < 4} />
-                    <span className={p.availability === "AVAILABLE" ? "" : "alert"}>
-                      {p.availability === "AVAILABLE"
-                        ? `${p.prep} min`
-                        : p.availability === "SOLD_OUT"
-                          ? "Sold out"
-                          : "Few left"}
-                    </span>
-                  </div>
-                  <div className="foodBody">
-                    <small>{p.category}</small>
-                    <h3>{p.name}</h3>
-                    <p>{p.description}</p>
-                    <div className="price">
-                      <b>{money(p.price)}</b>
-                      <button
-                        disabled={p.availability === "SOLD_OUT"}
-                        aria-label={`Customize ${p.name}`}
-                        onClick={() => {
-                          setSelected(p);
-                          setVariant(p.variants[0]?.id ?? "");
-                          setOptions([]);
-                        }}
-                      >
-                        <Plus size={20} />
-                      </button>
+          groups.map(([group, items], g) => (
+            <section key={group} className="menuGroup" aria-label={group}>
+              {groups.length > 1 && <h3 className="menuGroupTitle">{group}</h3>}
+              <div className="grid">
+                {items.map((p, index) => (
+                  <article
+                    className={`food${p.availability === "SOLD_OUT" ? " soldOut" : ""}`}
+                    key={p.id}
+                  >
+                    <div className="foodImg">
+                      <FoodPhoto src={p.image} alt={p.name} eager={g === 0 && index < 2} />
+                      {p.availability !== "AVAILABLE" && (
+                        <span className="alert">{p.availability === "SOLD_OUT" ? "Sold out" : "Few left"}</span>
+                      )}
                     </div>
-                  </div>
-                </article>
-              ))}
-          </div>
+                    <div className="foodBody">
+                      <h3>{p.name}</h3>
+                      <p>{p.description}</p>
+                      <div className="price">
+                        <span className="priceTag">
+                          <b>{money(p.price)}</b>
+                          <small>
+                            <Clock3 size={12} aria-hidden /> {p.prep} min
+                          </small>
+                        </span>
+                        <button
+                          type="button"
+                          className="addBtn"
+                          disabled={p.availability === "SOLD_OUT"}
+                          aria-label={p.availability === "SOLD_OUT" ? `${p.name} is sold out` : `Add ${p.name}`}
+                          onClick={() => {
+                            setSelected(p);
+                            setVariant(p.variants[0]?.id ?? "");
+                            setOptions([]);
+                          }}
+                        >
+                          {p.availability === "SOLD_OUT" ? (
+                            "Sold out"
+                          ) : (
+                            <>
+                              <Plus size={18} aria-hidden /> Add
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ))
         )}
-        {menu &&
-          !menu.products.some(
-            (p) =>
-              (category === "All" || p.category === category) &&
-              p.name.toLowerCase().includes(query.toLowerCase()),
-          ) && <p className="empty">No meals match. Try another search.</p>}
       </section>
       {count > 0 && (
-        <button className="cartbar" onClick={() => setCheckout(true)}>
-          <span>
-            <ShoppingBag /> {count} items
+        <button type="button" className="cartbar" onClick={() => setCheckout(true)}>
+          <span className="cartbarCount">
+            <ShoppingBag size={18} aria-hidden /> {count} item{count === 1 ? "" : "s"}
           </span>
-          <b>{money(total)} · Review order</b>
+          <span className="cartbarTotal">{money(total)}</span>
+          <b>
+            Review order <ArrowRight size={16} aria-hidden />
+          </b>
         </button>
       )}
       {selected && (
@@ -536,8 +598,7 @@ export default function Customer({
                       </option>
                       {menu?.slots.map((s) => (
                         <option value={s.at} key={s.at} disabled={s.full}>
-                          {s.at.slice(5, 10)} · {time(s.at)} ·{" "}
-                          {s.full ? "FULL" : `${s.count}/${s.capacity}`}
+                          {pickupLabel(s.at)} · {s.full ? "Full" : `${s.capacity - s.count} left`}
                         </option>
                       ))}
                     </select>
@@ -584,29 +645,92 @@ export default function Customer({
         </div>
       )}
       {placed && (
-        <div className="overlay">
-          <div className="sheet success">
-            <span className="eyebrow">ORDER RECEIVED</span>
-            <h2>#{placed.number}</h2>
-            <p>
-              {placed.customer}, your pickup is {time(placed.pickupAt)}.
-            </p>
-            <p>
-              {placed.payment === "ONLINE"
-                ? "Complete payment on your tracking page to send this order to the kitchen."
-                : "Follow your order from the kitchen to pickup."}
-            </p>
-            <a
-              className="primary wide"
-              href={`/order/${placed.number}#${placed.token}`}
-            >
-              Track order {pos ? "/ show receipt" : ""}
-            </a>
-            {pos && (
-              <button className="ghost wide" onClick={() => setPlaced(null)}>
-                Next customer
+        <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="placed-title">
+          <div className="sheet success confirmSheet">
+            {!pos && (
+              <button className="close" aria-label="Close" onClick={() => setPlaced(null)}>
+                <X />
               </button>
             )}
+            <span className="confirmIcon" aria-hidden>
+              <CheckCircle2 size={30} />
+            </span>
+            <h2 id="placed-title">{pos ? `Order #${placed.number} placed` : "Order received"}</h2>
+            <p className="confirmLead">
+              {placed.payment === "ONLINE" && placed.paymentStatus !== "PAID"
+                ? "One more step: pay online to send it to the kitchen."
+                : "The kitchen will accept it shortly. Follow it live with your tracking code."}
+            </p>
+            <dl className="confirmFacts">
+              <div>
+                <dt>Order</dt>
+                <dd>#{placed.number}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{placed.payment === "ONLINE" && placed.paymentStatus !== "PAID" ? "Waiting for payment" : "Received"}</dd>
+              </div>
+              <div>
+                <dt>Pickup</dt>
+                <dd>{pickupLabel(placed.pickupAt)}</dd>
+              </div>
+              <div>
+                <dt>Total</dt>
+                <dd>
+                  {money(placed.total)}
+                  <small>
+                    {placed.paymentStatus === "PAID"
+                      ? "Paid"
+                      : placed.payment === "ONLINE"
+                        ? "Not paid yet"
+                        : placed.payment === "MOMO"
+                          ? "Cashier confirms MoMo"
+                          : "Pay at pickup"}
+                  </small>
+                </dd>
+              </div>
+            </dl>
+            {placed.trackingCode && <TrackingCodeCard code={placed.trackingCode} number={placed.number} />}
+            <div className="confirmActions">
+              {placed.payment === "ONLINE" && placed.paymentStatus !== "PAID" ? (
+                <>
+                  <a className="primary wide" href={`/order/${placed.number}#${placed.token}`}>
+                    Pay now
+                  </a>
+                  {placed.trackingCode && (
+                    <a className="ghost wide" href={trackingPath(placed.trackingCode)}>
+                      Track order
+                    </a>
+                  )}
+                </>
+              ) : (
+                <>
+                  <a
+                    className="primary wide"
+                    href={placed.trackingCode ? trackingPath(placed.trackingCode) : `/order/${placed.number}#${placed.token}`}
+                  >
+                    Track order <ArrowRight size={18} aria-hidden />
+                  </a>
+                  <a className="ghost wide" href={`/order/${placed.number}#${placed.token}`}>
+                    View receipt
+                  </a>
+                </>
+              )}
+              {pos && printer && (
+                <button className="ghost wide" onClick={() => printReceipt(placed, printer.business, printer.receipt)}>
+                  Print receipt
+                </button>
+              )}
+              {pos ? (
+                <button className="ghost wide" onClick={() => setPlaced(null)}>
+                  Next customer
+                </button>
+              ) : (
+                <button className="linkBtn" onClick={() => setPlaced(null)}>
+                  Back to the menu
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
