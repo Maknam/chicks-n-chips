@@ -62,6 +62,7 @@ export const toOrder = (o: OrderRow): Order => ({
   id: o.id,
   number: o.number,
   token: "",
+  trackingCode: o.trackingCode,
   requestId: "",
   customerId: o.customerId,
   customer: o.customerName,

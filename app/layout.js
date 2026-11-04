@@ -1,6 +1,14 @@
+import { Inter } from "next/font/google";
 import "./globals.css";
 import "./system.css";
+import "./tokens.css";
+import "./shell.css";
+import "./settings.css";
+import "./customer.css";
 import Install from "../components/install";
+
+// Self-hosted at build time by next/font: no request to Google from the browser, no layout shift.
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const viewport = {
   themeColor: "#17130f",
@@ -31,8 +39,10 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={inter.variable}>
+      {/* Browser extensions (e.g. ColorZilla's cz-shortcut-listen) add attributes to <body> before
+          React loads. This ignores attribute differences on <body> only, not on its children. */}
+      <body suppressHydrationWarning>
         {children}
         <Install />
       </body>

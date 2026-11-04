@@ -8,7 +8,7 @@ import { DomainError } from "@/lib/domain";
 import { buildWorkspace } from "@/server/services/workspace";
 import { setAvailability, updateProduct } from "@/server/services/catalog";
 import { recordMovement } from "@/server/services/inventory";
-import { updateSettings } from "@/server/services/branch";
+import { updateBusiness, updateReceipt, updateSettings } from "@/server/services/branch";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,8 @@ const actionArea: Record<string, Area> = {
   product: "menu",
   inventory: "inventory",
   settings: "settings",
+  business: "settings",
+  receipt: "settings",
   invite: "staff",
   resetLink: "staff",
   removeStaff: "staff",
@@ -56,6 +58,12 @@ export async function POST(req: Request) {
         break;
       case "settings":
         await updateSettings(c, data, staff.id);
+        break;
+      case "business":
+        await updateBusiness(c, data, staff.id);
+        break;
+      case "receipt":
+        await updateReceipt(c, data, staff.id);
         break;
       case "invite": {
         const { token, existing } = await createInvite(c, data, staff.id);

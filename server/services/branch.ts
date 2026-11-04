@@ -1,7 +1,15 @@
 // Branch settings, the change-revision counter and the audit trail.
 import { eq, sql } from "drizzle-orm";
-import { auditLogs, branches } from "@/db/schema";
-import { DomainError, settingsInput, type Settings } from "@/lib/domain";
+import { auditLogs, branches, restaurants } from "@/db/schema";
+import {
+  DomainError,
+  businessInput,
+  receiptInput,
+  settingsInput,
+  toReceiptSettings,
+  type Business,
+  type Settings,
+} from "@/lib/domain";
 import { transaction, type Ctx } from "../context";
 
 export type BranchRow = typeof branches.$inferSelect;
@@ -13,6 +21,16 @@ export const toSettings = (b: BranchRow): Settings => ({
   capacity: b.slotCapacity,
   basePrep: b.basePrepMinutes,
 });
+
+export const toReceipt = (b: BranchRow) => toReceiptSettings(b.receipt);
+
+export async function getBusiness(c: Ctx, b: BranchRow): Promise<Business> {
+  const [r] = await c.db
+    .select({ name: restaurants.name })
+    .from(restaurants)
+    .where(eq(restaurants.id, b.restaurantId));
+  return { name: r?.name ?? "", branch: b.name, phone: b.phone, address: b.address };
+}
 
 const NOT_INITIALIZED = "Branch not initialized. Run the database seed first.";
 
@@ -75,6 +93,29 @@ export async function updateSettings(c: Ctx, raw: unknown, actorId: string) {
       })
       .where(eq(branches.id, t.branchId));
     await audit(t, "SETTINGS_CHANGED", actorId, t.branchId, s);
+    await bumpRevision(t);
+  });
+}
+
+export async function updateBusiness(c: Ctx, raw: unknown, actorId: string) {
+  const s = businessInput.parse(raw);
+  await transaction(c, async (t) => {
+    const b = await lockBranch(t);
+    await t.db.update(restaurants).set({ name: s.name, updatedAt: new Date() }).where(eq(restaurants.id, b.restaurantId));
+    await t.db
+      .update(branches)
+      .set({ name: s.branch, phone: s.phone, address: s.address, updatedAt: new Date() })
+      .where(eq(branches.id, t.branchId));
+    await audit(t, "BUSINESS_CHANGED", actorId, t.branchId, s);
+    await bumpRevision(t);
+  });
+}
+
+export async function updateReceipt(c: Ctx, raw: unknown, actorId: string) {
+  const s = receiptInput.parse(raw);
+  await transaction(c, async (t) => {
+    await t.db.update(branches).set({ receipt: s, updatedAt: new Date() }).where(eq(branches.id, t.branchId));
+    await audit(t, "RECEIPT_CHANGED", actorId, t.branchId);
     await bumpRevision(t);
   });
 }

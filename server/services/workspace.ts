@@ -20,11 +20,15 @@ import {
 import type { Ctx } from "../context";
 import type { Area } from "../staff";
 import { listMembers } from "../staff";
-import { getBranch, toSettings } from "./branch";
+import { getBranch, getBusiness, toReceipt, toSettings } from "./branch";
 import { listProducts } from "./catalog";
 import { findOrders } from "./orders";
 
+// Most screens look back 30 days; Reports loads 90 so a 30-day range can be
+// compared with the 30 days before it.
 const REPORT_DAYS = 30;
+export const REPORTS_HISTORY_DAYS = 90;
+const historyDays = (area: Area) => (area === "reports" ? REPORTS_HISTORY_DAYS : REPORT_DAYS);
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000);
 
 function orderScope(area: Area) {
@@ -33,7 +37,7 @@ function orderScope(area: Area) {
   if (area === "kitchen")
     return and(open, or(sql`${orders.paymentMethod} <> 'ONLINE'`, eq(orders.paymentStatus, "PAID")));
   if (area === "pos") return or(open, gte(orders.createdAt, daysAgo(1)));
-  return or(open, gte(orders.createdAt, daysAgo(REPORT_DAYS)));
+  return or(open, gte(orders.createdAt, daysAgo(historyDays(area))));
 }
 
 export async function buildWorkspace(c: Ctx, area: Area, role: Role) {
@@ -41,7 +45,7 @@ export async function buildWorkspace(c: Ctx, area: Area, role: Role) {
   const [branch, products, orderList, inventory] = await Promise.all([
     getBranch(c),
     listProducts(c),
-    findOrders(c, orderScope(area), 3000),
+    findOrders(c, orderScope(area), area === "reports" ? 6000 : 3000),
     c.db
       .select()
       .from(inventoryItems)
@@ -60,9 +64,9 @@ export async function buildWorkspace(c: Ctx, area: Area, role: Role) {
         c.db
           .select()
           .from(stockMovements)
-          .where(and(eq(stockMovements.branchId, c.branchId), gte(stockMovements.createdAt, daysAgo(REPORT_DAYS))))
+          .where(and(eq(stockMovements.branchId, c.branchId), gte(stockMovements.createdAt, daysAgo(historyDays(area)))))
           .orderBy(stockMovements.createdAt)
-          .limit(2000),
+          .limit(5000),
         c.db
           .select()
           .from(notifications)
@@ -72,20 +76,23 @@ export async function buildWorkspace(c: Ctx, area: Area, role: Role) {
         c.db
           .select()
           .from(auditLogs)
-          .where(and(eq(auditLogs.branchId, c.branchId), gte(auditLogs.createdAt, daysAgo(REPORT_DAYS))))
+          .where(and(eq(auditLogs.branchId, c.branchId), gte(auditLogs.createdAt, daysAgo(historyDays(area)))))
           .orderBy(auditLogs.createdAt)
           .limit(2000),
         area === "staff" ? listMembers(c) : Promise.resolve([]),
       ])
     : [[], [], [], [], []];
 
+  const business = await getBusiness(c, branch);
   const state: State = {
     revision: branch.revision,
     nextNumber: branch.nextOrderNumber,
     settings: toSettings(branch),
+    business,
+    receipt: toReceipt(branch),
     products,
-    // Kitchen never needs customer phone numbers.
-    orders: area === "kitchen" ? orderList.map((o) => ({ ...o, phone: "" })) : orderList,
+    // Kitchen never needs customer phone numbers or tracking codes.
+    orders: area === "kitchen" ? orderList.map((o) => ({ ...o, phone: "", trackingCode: "" })) : orderList,
     customers: customerRows.map(toCustomer),
     inventory: inventory.map(toInventory),
     movements: movements.map(toMovement),

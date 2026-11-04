@@ -64,6 +64,11 @@ export const branches = pgTable(
       .references(() => restaurants.id),
     name: text("name").notNull(),
     timezone: text("timezone").notNull().default("Africa/Accra"),
+    // Shown on receipts and in the staff workspace.
+    phone: text("phone").notNull().default(""),
+    address: text("address").notNull().default(""),
+    // Thermal receipt layout (see ReceiptSettings in lib/domain.ts); missing keys use defaults.
+    receipt: jsonb("receipt").$type<Record<string, unknown>>().notNull().default({}),
     openHour: integer("open_hour").notNull().default(8),
     closeHour: integer("close_hour").notNull().default(22),
     slotIntervalMinutes: integer("slot_interval_minutes").notNull().default(15),
@@ -235,6 +240,8 @@ export const orders = pgTable(
     number: integer("number").notNull(),
     // Client-generated idempotency key: retried checkouts return the same order.
     requestId: uuid("request_id").notNull(),
+    // Public tracking code (bearer secret, random, 10 chars of lib/tracking ALPHABET). Never sequential.
+    trackingCode: text("tracking_code").notNull(),
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id),
@@ -262,6 +269,7 @@ export const orders = pgTable(
     uniqueIndex("orders_branch_number").on(t.branchId, t.number),
     uniqueIndex("orders_branch_request").on(t.branchId, t.requestId),
     uniqueIndex("orders_payment_reference").on(t.paymentReference),
+    uniqueIndex("orders_tracking_code").on(t.trackingCode),
     index("orders_branch_pickup").on(t.branchId, t.pickupAt),
     index("orders_branch_created").on(t.branchId, t.createdAt),
     index("orders_branch_status").on(t.branchId, t.status),

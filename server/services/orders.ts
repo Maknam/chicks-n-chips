@@ -25,6 +25,8 @@ import {
 } from "@/lib/domain";
 import { toOrder } from "../mappers";
 import { receiptToken, validReceiptToken } from "../receipts";
+import { generateTrackingCode } from "../tracking";
+import { normalizeCode, toPublicOrder, type PublicOrder } from "@/lib/tracking";
 import { transaction, type Ctx } from "../context";
 import { audit, bumpRevision, getBranch, lockBranch, toSettings } from "./branch";
 import { listProducts } from "./catalog";
@@ -148,6 +150,7 @@ export async function createOrder(
       branchId: t.branchId,
       number: branch.nextOrderNumber,
       requestId: input.requestId,
+      trackingCode: generateTrackingCode(),
       customerId: customer.id,
       customerName: input.customer,
       customerPhone: input.phone,
@@ -261,6 +264,17 @@ export async function getReceipt(c: Ctx, number: string, token: string | null) {
   if (!order || !validReceiptToken(order.id, token))
     throw new DomainError("Receipt not found. Open the private link from your confirmation.", 404);
   return order;
+}
+
+/**
+ * Public, read-only tracking by code. Unknown and malformed codes get the same answer,
+ * so responses reveal nothing about which codes exist.
+ */
+export async function trackOrder(c: Ctx, rawCode: unknown): Promise<PublicOrder | null> {
+  const code = normalizeCode(String(rawCode ?? ""));
+  if (!code) return null;
+  const order = await findOrder(c, eq(orders.trackingCode, code));
+  return order ? toPublicOrder(order) : null;
 }
 
 /** Guest taps "I'm at Pent Hall". Starts the pickup-wait measurement. */

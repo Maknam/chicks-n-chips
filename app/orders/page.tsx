@@ -1,4 +1,7 @@
-import { History } from "@/components/tracking";
+import TrackOrders from "@/components/track-orders";
+
+export const metadata = { title: "Track your order | Chics & Chips" };
+
 export default function Page() {
-  return <History />;
+  return <TrackOrders />;
 }

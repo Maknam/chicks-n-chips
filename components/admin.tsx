@@ -1,9 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Inventory from "./inventory";
 import StaffPanel from "./staff";
 import FoodPhoto from "./food-photo";
-import { useRouter } from "next/navigation";
+import Reports from "./reports";
+import SettingsPanel from "./settings";
+import { printReceipt } from "@/lib/receipt";
+import { Printer, RefreshCw } from "lucide-react";
+import AdminShell, { PageHeader, type Connection } from "./layout/admin-shell";
+import { Button, ToastProvider } from "./ui";
 import { useOperations } from "./operations";
 import { request } from "./customer";
 import {
@@ -16,25 +21,15 @@ import {
   type Product,
   type Order,
 } from "@/lib/domain";
-const areas = [
-  "overview",
-  "orders",
-  "menu",
-  "customers",
-  "inventory",
-  "reports",
-  "staff",
-  "settings",
-];
-const title: Record<string, string> = {
-  overview: "Your eatery, at a glance.",
-  orders: "Every order. One place.",
-  menu: "Keep the menu fresh.",
-  customers: "Know your regulars.",
-  inventory: "Enough for the next rush.",
-  reports: "What’s working?",
-  staff: "Your team.",
-  settings: "Make room for the rush.",
+const PAGES: Record<string, { title: string; description: string }> = {
+  overview: { title: "Overview", description: "How the restaurant is doing today." },
+  orders: { title: "Orders", description: "Every order across online and walk-in, newest first." },
+  menu: { title: "Menu", description: "Products, prices, photos and availability." },
+  customers: { title: "Customers", description: "Regulars recognised by phone number." },
+  inventory: { title: "Inventory", description: "Stock on hand and what upcoming orders need." },
+  reports: { title: "Reports", description: "Sales, menu performance and service, by period." },
+  staff: { title: "Staff & access", description: "Invite your team and control what each role can do." },
+  settings: { title: "Settings", description: "Business details, operating hours, receipts and your account." },
 };
 export function Bars({
   values,
@@ -56,9 +51,46 @@ export function Bars({
     </div>
   );
 }
+/** Connection state from real fetch results and the browser's network status. */
+function useConnection(updatedAt: number | null, failed: boolean): Connection {
+  const [online, setOnline] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const on = () => setOnline(navigator.onLine);
+    on();
+    window.addEventListener("online", on);
+    window.addEventListener("offline", on);
+    const t = setInterval(() => setNow(Date.now()), 15000);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", on);
+      clearInterval(t);
+    };
+  }, []);
+  if (!online) return "offline";
+  if (failed) return "error";
+  if (!updatedAt) return "updating";
+  // Full refresh runs every 30 s; two missed refreshes means the data is stale.
+  return now - updatedAt > 75000 ? "stale" : "live";
+}
+
 export default function Admin({ area }: { area: string }) {
-  const router = useRouter();
-  const { data, error, busy, action, load } = useOperations(area);
+  return (
+    <ToastProvider>
+      <AdminPage area={area} />
+    </ToastProvider>
+  );
+}
+
+function AdminPage({ area }: { area: string }) {
+  const { data, error, busy, action, load, loading, updatedAt, failed } = useOperations(area);
+  const connection = useConnection(updatedAt, failed);
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  useEffect(() => {
+    request("/api/session")
+      .then((d) => setUser(d.user ?? null))
+      .catch(() => setUser(null));
+  }, []);
   const [query, setQuery] = useState(""),
     [status, setStatus] = useState("ALL"),
     [editing, setEditing] = useState<Product | null>(null),
@@ -69,8 +101,20 @@ export default function Admin({ area }: { area: string }) {
     action(`/api/orders/${o.id}`, input, "PATCH");
   const update = async (input: unknown) => {
     const ok = await action("/api/operations", input);
-    if (ok) setNotice("Changes saved.");
+    if (ok) {
+      setNotice("Changes saved.");
+      setTimeout(() => setNotice(""), 4000);
+    }
     return ok;
+  };
+  /** Settings writes: throws the server's message so forms can show it. */
+  const mutate = async (input: Record<string, unknown>) => {
+    await request("/api/operations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    await load();
   };
   async function saveProduct(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -88,14 +132,6 @@ export default function Admin({ area }: { area: string }) {
     )
       setEditing(null);
   }
-  const visibleAreas =
-    data?.role === "KITCHEN"
-      ? ["menu"]
-      : data?.role === "CASHIER"
-        ? ["orders"]
-        : areas.filter(
-            (x) => data?.role === "OWNER" || !["staff", "settings"].includes(x),
-          );
   const metrics = a
     ? [
         ["Paid revenue", money(a.revenue), "Today · GHS"],
@@ -112,58 +148,36 @@ export default function Admin({ area }: { area: string }) {
         ["Late orders", a.late, "Past promised pickup"],
       ]
     : [];
+  const page = PAGES[area] ?? { title: area, description: "" };
+  // Real count: new orders waiting for someone to accept them.
+  const counts = s ? { orders: s.orders.filter((o) => o.status === "NEW").length } : undefined;
   return (
-    <div className="staffShell">
-      <aside className="sidebar">
-        <a href="/admin" className="brandLink">
-          <span className="brandMark">C&C</span>
-          <h3>Chics & Chips</h3>
-          <small>Pent Hall workspace</small>
-        </a>
-        <nav>
-          {visibleAreas.map((x) => (
-            <a
-              key={x}
-              className={area === x ? "active" : ""}
-              href={x === "overview" ? "/admin" : `/admin/${x}`}
-            >
-              {x[0].toUpperCase() + x.slice(1)}
-            </a>
-          ))}
-          <a href="/kitchen">Kitchen display ↗</a>
-          {data?.role !== "KITCHEN" && <a href="/pos">Point of sale ↗</a>}
-          <a href="/menu">Customer menu ↗</a>
-          <a href="/account">My account</a>
-        </nav>
-        <small>
-          {data?.role} · {data?.demo ? "DEMO DATA" : "LIVE WORKSPACE"}
-        </small>
-        <button
-          className="ghost"
-          onClick={async () => {
-            await request("/api/session", { method: "DELETE" });
-            router.push("/login");
-            router.refresh();
-          }}
-        >
-          Sign out
-        </button>
-      </aside>
-      <main className="workspace">
-        <header className="workspaceHead">
-          <div>
-            <span className="eyebrow">{area.toUpperCase()} · PENT HALL</span>
-            <h1>{title[area]}</h1>
-            <p className="muted">
-              {data?.demo ? "Fictional pilot data · " : ""}Live operations,
-              Africa/Accra time
-            </p>
-          </div>
-          <button className="ghost" onClick={load}>
-            Refresh
-          </button>
-        </header>
-        {error && (
+    <AdminShell
+      area={area}
+      role={data?.role}
+      user={user}
+      business={s?.business}
+      demo={data?.demo}
+      connection={connection}
+      updatedAt={updatedAt}
+      counts={counts}
+    >
+        {area === "settings" ? (
+          s ? (
+            <SettingsPanel state={s} save={mutate} reload={load} reloading={loading} page={page} />
+          ) : null
+        ) : (
+          <PageHeader
+            title={page.title}
+            description={page.description}
+            actions={
+              <Button variant="secondary" onClick={load} loading={loading} aria-label="Refresh data">
+                {!loading && <RefreshCw size={16} aria-hidden />} Refresh
+              </Button>
+            }
+          />
+        )}
+        {error && area !== "settings" && (
           <p role="alert" className="error">
             {error}
           </p>
@@ -364,6 +378,13 @@ export default function Admin({ area }: { area: string }) {
                                   </button>
                                 )}
                                 <button
+                                  onClick={() =>
+                                    printReceipt(o, s.business, s.receipt)
+                                  }
+                                >
+                                  <Printer size={14} aria-hidden /> Receipt
+                                </button>
+                                <button
                                   disabled={busy || o.errorReported}
                                   onClick={() =>
                                     patchOrder(o, { action: "error" })
@@ -496,231 +517,7 @@ export default function Admin({ area }: { area: string }) {
                 </div>
               </section>
             )}
-            {area === "reports" && (
-              <>
-                <div className="metricGrid">
-                  {[
-                    [
-                      "Order → ready",
-                      a.prepMinutes === null
-                        ? "No data"
-                        : `${a.prepMinutes.toFixed(1)} min`,
-                    ],
-                    [
-                      "Pickup waiting",
-                      a.waitingMinutes === null
-                        ? "No arrival data"
-                        : `${a.waitingMinutes.toFixed(1)} min`,
-                    ],
-                    [
-                      "Late order rate",
-                      `${(a.count ? (a.late / a.count) * 100 : 0).toFixed(1)}%`,
-                    ],
-                    [
-                      "Cancellation rate",
-                      `${(a.count ? (a.cancelled / a.count) * 100 : 0).toFixed(1)}%`,
-                    ],
-                    [
-                      "Order error rate",
-                      `${(a.count ? (a.errors / a.count) * 100 : 0).toFixed(1)}%`,
-                    ],
-                    ["Repeat customers", `${a.repeatRate.toFixed(1)}%`],
-                    ["Average basket", a.basket?.toFixed(1) ?? "No data"],
-                    [
-                      "Scheduled share",
-                      `${(a.count ? (a.scheduled / a.count) * 100 : 0).toFixed(1)}%`,
-                    ],
-                  ].map(([label, value]) => (
-                    <div key={label}>
-                      <span>{label}</span>
-                      <b>{value}</b>
-                      <small>Today’s orders</small>
-                    </div>
-                  ))}
-                </div>
-                <div className="twoColumns">
-                  <section className="panel">
-                    <h2>Menu performance · today</h2>
-                    <p className="quiet">
-                      Best to worst, including zero sellers. Paid, non-cancelled
-                      orders.
-                    </p>
-                    <table className="dataTable">
-                      <thead>
-                        <tr>
-                          <th>Product</th>
-                          <th>Sold</th>
-                          <th>Revenue</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {a.products.map((p) => (
-                          <tr key={p.name}>
-                            <td>{p.name}</td>
-                            <td>{p.quantity}</td>
-                            <td>{money(p.revenue)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </section>
-                  <section className="panel">
-                    <h2>Peak periods · today</h2>
-                    <Bars values={a.hourly.filter((v) => v.value)} />
-                    <h2>Orders by day</h2>
-                    <Bars
-                      values={[
-                        ...new Set(
-                          s.orders.map((o) => o.createdAt.slice(0, 10)),
-                        ),
-                      ]
-                        .sort()
-                        .slice(-7)
-                        .map((day) => ({
-                          label: day,
-                          value: s.orders.filter((o) =>
-                            o.createdAt.startsWith(day),
-                          ).length,
-                        }))}
-                    />
-                  </section>
-                  <section className="panel">
-                    <h2>Popular extras · all recorded orders</h2>
-                    <Bars
-                      values={Object.entries(
-                        s.orders
-                          .filter(
-                            (o) =>
-                              o.paymentStatus === "PAID" &&
-                              !["CANCELLED", "REJECTED"].includes(o.status),
-                          )
-                          .reduce(
-                            (totals, o) => {
-                              o.items.forEach((i) =>
-                                i.options.forEach(
-                                  (x) =>
-                                    (totals[x.name] =
-                                      (totals[x.name] || 0) + i.qty),
-                                ),
-                              );
-                              return totals;
-                            },
-                            {} as Record<string, number>,
-                          ),
-                      ).map(([label, value]) => ({ label, value }))}
-                    />
-                    <h3>Waste recorded</h3>
-                    {s.inventory.map((i) => (
-                      <p key={i.id}>
-                        {i.name}:{" "}
-                        {s.movements
-                          .filter(
-                            (m) => m.inventoryId === i.id && m.kind === "WASTE",
-                          )
-                          .reduce((n, m) => n + m.quantity, 0)}{" "}
-                        {i.unit}
-                      </p>
-                    ))}
-                  </section>
-                  <section className="panel">
-                    <h2>Revenue by day</h2>
-                    {[...new Set(s.orders.map((o) => o.createdAt.slice(0, 10)))]
-                      .sort()
-                      .slice(-7)
-                      .map((day) => (
-                        <div className="receiptLine" key={day}>
-                          <span>{day}</span>
-                          <b>{money(analytics(s, day).revenue)}</b>
-                        </div>
-                      ))}
-                    <h3>Stockout events</h3>
-                    <p>
-                      {
-                        s.audits.filter((a) => a.action === "MENU_SOLD_OUT")
-                          .length
-                      }{" "}
-                      recorded availability changes
-                    </p>
-                    <h3>Peak lunch revenue · today, 12–3 PM</h3>
-                    <b>
-                      {money(
-                        s.orders
-                          .filter(
-                            (o) =>
-                              o.createdAt.startsWith(
-                                new Date().toISOString().slice(0, 10),
-                              ) &&
-                              o.paymentStatus === "PAID" &&
-                              !["CANCELLED", "REJECTED"].includes(o.status) &&
-                              new Date(o.createdAt).getUTCHours() >= 12 &&
-                              new Date(o.createdAt).getUTCHours() < 15,
-                          )
-                          .reduce((n, o) => n + o.total, 0),
-                      )}
-                    </b>
-                  </section>
-                </div>
-              </>
-            )}
-            {area === "settings" && (
-              <section className="panel">
-                <h2>Opening hours & pickup capacity</h2>
-                <p className="muted">
-                  Times use Africa/Accra. Existing reservations remain valid
-                  when settings change.
-                </p>
-                <form
-                  className="formGrid"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const f = new FormData(e.currentTarget);
-                    update({
-                      action: "settings",
-                      ...Object.fromEntries(
-                        [
-                          "open",
-                          "close",
-                          "interval",
-                          "capacity",
-                          "basePrep",
-                        ].map((k) => [k, Number(f.get(k))]),
-                      ),
-                    });
-                  }}
-                >
-                  {(
-                    [
-                      "open",
-                      "close",
-                      "interval",
-                      "capacity",
-                      "basePrep",
-                    ] as const
-                  ).map((k) => (
-                    <label key={k}>
-                      {
-                        {
-                          open: "Opening hour (0–23)",
-                          close: "Closing hour (1–24)",
-                          interval: "Pickup interval, minutes",
-                          capacity: "Maximum orders per slot",
-                          basePrep: "Base preparation, minutes",
-                        }[k]
-                      }
-                      <input
-                        name={k}
-                        type="number"
-                        defaultValue={s.settings[k]}
-                        required
-                      />
-                    </label>
-                  ))}
-                  <button className="primary" disabled={busy}>
-                    Save operating settings
-                  </button>
-                </form>
-              </section>
-            )}
+            {area === "reports" && <Reports state={s} />}
             {area === "staff" && (
               <section className="panel">
                 <h2>Staff access</h2>
@@ -813,7 +610,6 @@ export default function Admin({ area }: { area: string }) {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </AdminShell>
   );
 }

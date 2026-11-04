@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { money, pickupLabel, STATUS_LABEL, type Order } from "@/lib/domain";
 import BottomNav from "./bottom-nav";
+import CustomerHeader from "./customer-header";
+import { OrderProgress, TrackingCodeCard } from "./order-progress";
 import { request, type CartLine } from "./customer";
+import { toPublicOrder } from "@/lib/tracking";
 export function reorder(order: Order) {
   const cart: CartLine[] = order.items.map((i, n) => ({
     key: `${i.productId}-${n}`,
@@ -83,76 +86,37 @@ export default function Tracking({ number }: { number: string }) {
       setBusy(false);
     }
   }
-  const steps = ["NEW", "ACCEPTED", "PREPARING", "READY", "COMPLETED"];
   return (
-    <main className="tracking">
-      <a href="/menu">← Back to menu</a>
-      <p className="eyebrow">YOUR PENT HALL PICKUP</p>
-      <h1>Order #{number}</h1>
+    <main className="custPage">
+      <CustomerHeader />
+      <div className="custContainer narrow">
+      <a href="/orders" className="backLink">← Track another order</a>
+      <h1 className="custTitle">Your receipt · #{number}</h1>
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
       {!order ? (
-        <p>
+        <p className="custLead">
           {token
             ? "Finding your order…"
-            : "Open your private confirmation link, or find the receipt in My orders on the device you used to order."}
+            : "This private receipt link is incomplete. To check your order on this device, enter its tracking code on the Track order page."}
+          {!token && (
+            <>
+              {" "}
+              <a href="/orders">Track an order →</a>
+            </>
+          )}
         </p>
       ) : (
         <>
-          <div aria-live="polite">
-            <span className={`status ${order.status.toLowerCase()}`}>
-              {STATUS_LABEL[order.status]}
-            </span>
-            <h2 className="trackHeadline">
-              {order.status === "READY"
-                ? "Fresh, hot, ready for you."
-                : order.status === "COMPLETED"
-                  ? "Enjoy your meal!"
-                  : order.status === "PREPARING"
-                    ? "Your food is on the grill."
-                    : ["CANCELLED", "REJECTED"].includes(order.status)
-                      ? "This order was cancelled."
-                      : "We’ve got your order."}
-            </h2>
-            <p className="pickupWhen">
-              Pickup <b>{pickupLabel(order.pickupAt)}</b> · Chics & Chips, Pent
-              Hall
-            </p>
-            {!["CANCELLED", "REJECTED"].includes(order.status) && (
-              <ol className="steps">
-                {steps.map((s, i) => (
-                  <li
-                    key={s}
-                    className={
-                      i < steps.indexOf(order.status)
-                        ? "done"
-                        : s === order.status
-                          ? "current"
-                          : ""
-                    }
-                  >
-                    <span className="stepDot" aria-hidden>
-                      {i < steps.indexOf(order.status) ? "✓" : i + 1}
-                    </span>
-                    {
-                      [
-                        "Received",
-                        "Accepted",
-                        "Preparing",
-                        "Ready for pickup",
-                        "Collected",
-                      ][i]
-                    }
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-          {order.payment === "ONLINE" && order.paymentStatus !== "PAID" && (
-            <form className="formGrid panel" onSubmit={pay}>
+          <section className="custCard">
+            <OrderProgress order={toPublicOrder(order)} compact />
+          </section>
+          {order.trackingCode && <TrackingCodeCard code={order.trackingCode} number={order.number} />}
+          {order.payment === "ONLINE" && order.paymentStatus !== "PAID" && !["CANCELLED", "REJECTED"].includes(order.status) && (
+            <form className="formGrid custCard" onSubmit={pay}>
               <h2>Complete your payment</h2>
               <p>
                 Your kitchen ticket activates after Paystack verifies payment.
@@ -166,7 +130,7 @@ export default function Tracking({ number }: { number: string }) {
               </button>
             </form>
           )}
-          <div className="receipt">
+          <div className="receipt custCard">
             <h2>Chics & Chips · #{order.number}</h2>
             <p>
               {order.customer} ·{" "}
@@ -209,11 +173,11 @@ export default function Tracking({ number }: { number: string }) {
             </button>
           </div>
           <p className="quiet">
-            Keep this receipt link private. Pickup is at Chics & Chips, Pent
-            Hall.
+            Keep this receipt link private: it can also start your payment. To let someone else follow the order, share the tracking code instead.
           </p>
         </>
       )}
+      </div>
       <BottomNav />
     </main>
   );
