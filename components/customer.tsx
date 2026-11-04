@@ -16,6 +16,8 @@ import {
   type Order,
   type OrderInput,
 } from "@/lib/domain";
+import FoodPhoto from "./food-photo";
+import BottomNav from "./bottom-nav";
 export type CartLine = {
   key: string;
   productId: string;
@@ -209,7 +211,9 @@ export default function Customer({
           </div>
         </a>
         <nav>
-          <a href="/orders">My orders</a>
+          <a href="/orders" className="hideOnPhone">
+            My orders
+          </a>
           <a href={pos ? "/kitchen" : "/login"}>{pos ? "Kitchen" : "Staff"}</a>
         </nav>
       </header>
@@ -304,14 +308,19 @@ export default function Customer({
                   (category === "All" || p.category === category) &&
                   p.name.toLowerCase().includes(query.toLowerCase()),
               )
-              .map((p) => (
-                <article className="food" key={p.id}>
+              .map((p, index) => (
+                <article
+                  className={`food${p.availability === "SOLD_OUT" ? " soldOut" : ""}`}
+                  key={p.id}
+                >
                   <div className="foodImg">
-                    <img src={p.image} alt={p.name} loading="lazy" />
-                    <span>
+                    <FoodPhoto src={p.image} alt={p.name} eager={index < 4} />
+                    <span className={p.availability === "AVAILABLE" ? "" : "alert"}>
                       {p.availability === "AVAILABLE"
                         ? `${p.prep} min`
-                        : p.availability.replace("_", " ")}
+                        : p.availability === "SOLD_OUT"
+                          ? "Sold out"
+                          : "Few left"}
                     </span>
                   </div>
                   <div className="foodBody">
@@ -367,11 +376,9 @@ export default function Customer({
             >
               <X />
             </button>
-            <img
-              className="customImage"
-              src={selected.image}
-              alt={selected.name}
-            />
+            <div className="customImage">
+              <FoodPhoto src={selected.image} alt={selected.name} eager />
+            </div>
             <h2>{selected.name}</h2>
             <p>{selected.description}</p>
             {selected.variants.length > 0 && (
@@ -607,12 +614,7 @@ export default function Customer({
         <b>Chics & Chips</b>
         <span>Pent Hall, University of Ghana · Good food, less waiting.</span>
       </footer>
-      <nav className="bottomNav">
-        <a href="/menu">Menu</a>
-        <a href="/cart">Bag ({count})</a>
-        <a href="/orders">Orders</a>
-        <a href="/profile">You</a>
-      </nav>
+      {!pos && <BottomNav count={count} />}
     </main>
   );
 }

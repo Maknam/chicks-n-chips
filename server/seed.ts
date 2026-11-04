@@ -31,8 +31,10 @@ const INVENTORY = [
 
 const CATEGORIES = ["Popular", "Chips", "Chicken", "Rice", "Drinks"];
 
+// Illustrative stock photos; owners replace them with their own in Admin → Menu.
+// An empty id shows the branded placeholder.
 const photo = (id: string) =>
-  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=700&q=80`;
+  id ? `https://images.unsplash.com/${id}?auto=format&fit=crop&w=700&q=80` : "";
 
 const MENU = [
   ["Classic Chips & Chicken", "Popular", "Crispy chicken, golden chips, fresh slaw and house sauce.", 3800, "photo-1562967914-608f82629710", [0, 1]],
@@ -41,7 +43,7 @@ const MENU = [
   ["Spicy Wings & Chips", "Chicken", "Glazed wings with a kick, chips and cooling dip.", 4200, "photo-1567620832903-9fc6debc209f", [3, 1]],
   ["Chicken Rice Bowl", "Rice", "Seasoned rice, grilled chicken and crunchy vegetables.", 4000, "photo-1512058564366-18510be2db19", [0, 2]],
   ["Chicken Burger Combo", "Chicken", "Crispy chicken burger, chips and a chilled drink.", 4500, "photo-1568901346375-23c9450c58cd", [0, 1, 6]],
-  ["Fresh Sobolo", "Drinks", "Chilled hibiscus with ginger. Made fresh in house.", 800, "photo-1433086966358-54859d0ed716", [4]],
+  ["Fresh Sobolo", "Drinks", "Chilled hibiscus with ginger. Made fresh in house.", 800, "", [4]],
   ["Bottled Water", "Drinks", "Cold water for a hot campus day.", 500, "photo-1548839140-29a749e1cf4d", [5]],
 ] as const;
 

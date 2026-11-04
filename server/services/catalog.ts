@@ -51,6 +51,13 @@ const productInput = z.object({
   description: z.string().max(400),
   price: z.number().int().min(100).max(100000),
   prep: z.number().int().min(1).max(120),
+  // Optional photo: an https link, or empty for the branded placeholder.
+  image: z
+    .string()
+    .trim()
+    .max(1000)
+    .refine((v) => v === "" || /^https:\/\/[^\s]+$/i.test(v), "Use an https:// image link, or leave it empty")
+    .optional(),
 });
 
 export async function updateProduct(c: Ctx, raw: unknown, actorId: string) {
@@ -63,6 +70,7 @@ export async function updateProduct(c: Ctx, raw: unknown, actorId: string) {
         description: input.description,
         price: input.price,
         prepMinutes: input.prep,
+        ...(input.image !== undefined && { imageUrl: input.image }),
         updatedAt: new Date(),
       })
       .where(and(eq(products.id, input.id), eq(products.branchId, t.branchId)))

@@ -2,21 +2,33 @@
 import { useState } from "react";
 import Customer from "./customer";
 import { useOperations } from "./operations";
-import { money, time } from "@/lib/domain";
+import { money, time, STATUS_LABEL } from "@/lib/domain";
 export default function POS() {
   const [tab, setTab] = useState("order");
   const { data, error, busy, action } = useOperations("pos");
   return (
     <>
-      <div className="top">
-        <b>Cashier workspace</b>
-        <div className="rowActions">
-          <button onClick={() => setTab("order")}>New walk-in</button>
-          <button onClick={() => setTab("payments")}>Payments & pickup</button>
-          <a className="ghost" href="/kitchen">
-            Kitchen
-          </a>
+      <div className="posBar">
+        <b>Cashier</b>
+        <div className="segmented" role="tablist" aria-label="Cashier views">
+          <button
+            role="tab"
+            aria-selected={tab === "order"}
+            className={tab === "order" ? "active" : ""}
+            onClick={() => setTab("order")}
+          >
+            New walk-in
+          </button>
+          <button
+            role="tab"
+            aria-selected={tab === "payments"}
+            className={tab === "payments" ? "active" : ""}
+            onClick={() => setTab("payments")}
+          >
+            Payments & pickup
+          </button>
         </div>
+        <a href="/admin/orders">Orders ↗</a>
       </div>
       {tab === "order" ? (
         <Customer pos />
@@ -36,7 +48,9 @@ export default function POS() {
               )
               .map((o) => (
                 <article className="panel" key={o.id}>
-                  <span className="badge">{o.status}</span>
+                  <span className={`status ${o.status.toLowerCase()}`}>
+                    {STATUS_LABEL[o.status]}
+                  </span>
                   <h2>
                     #{o.number} · {o.customer}
                   </h2>

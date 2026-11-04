@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Inventory from "./inventory";
 import StaffPanel from "./staff";
+import FoodPhoto from "./food-photo";
 import { useRouter } from "next/navigation";
 import { useOperations } from "./operations";
 import { request } from "./customer";
@@ -82,6 +83,7 @@ export default function Admin({ area }: { area: string }) {
         description: f.get("description"),
         price: Math.round(Number(f.get("price")) * 100),
         prep: Number(f.get("prep")),
+        image: String(f.get("image") ?? ""),
       })
     )
       setEditing(null);
@@ -385,7 +387,7 @@ export default function Admin({ area }: { area: string }) {
                 {s.products.map((p) => (
                   <article className="food" key={p.id}>
                     <div className="foodImg">
-                      <img src={p.image} alt={p.name} />
+                      <FoodPhoto src={p.image} alt={p.name} />
                       <span>{p.prep} min</span>
                     </div>
                     <div className="foodBody">
@@ -789,6 +791,20 @@ export default function Admin({ area }: { area: string }) {
                     defaultValue={editing.prep}
                     required
                   />
+                </label>
+                <label>
+                  Photo link
+                  <input
+                    name="image"
+                    type="url"
+                    inputMode="url"
+                    placeholder="https://… (leave empty for a placeholder)"
+                    defaultValue={editing.image}
+                  />
+                  <small className="quiet">
+                    Use your own photos for the best results — upload them to
+                    any image host and paste the https link here.
+                  </small>
                 </label>
                 <button className="primary" disabled={busy}>
                   Save product

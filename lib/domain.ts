@@ -149,6 +149,36 @@ export const time = (s: string) =>
     minute: "2-digit",
   });
 
+/** Customer-facing wording for each order status. */
+export const STATUS_LABEL: Record<Status, string> = {
+  NEW: "Order received",
+  ACCEPTED: "Accepted",
+  PREPARING: "Being prepared",
+  READY: "Ready for pickup",
+  COMPLETED: "Collected",
+  CANCELLED: "Cancelled",
+  REJECTED: "Declined",
+};
+
+/** "Today, 12:30 pm" / "Tomorrow, 08:00 am" / "Wed 5 Nov, 08:00 am" in Accra time. */
+export function pickupLabel(iso: string, now = new Date()) {
+  const day = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Africa/Accra" });
+  const target = new Date(iso);
+  const tomorrow = new Date(now.getTime() + 86400000);
+  const prefix =
+    day(target) === day(now)
+      ? "Today"
+      : day(target) === day(tomorrow)
+        ? "Tomorrow"
+        : target.toLocaleDateString("en-GH", {
+            timeZone: "Africa/Accra",
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+          });
+  return `${prefix}, ${time(iso)}`;
+}
+
 // ---------- Errors ----------
 
 export class DomainError extends Error {

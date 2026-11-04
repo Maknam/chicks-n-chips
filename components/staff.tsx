@@ -71,7 +71,7 @@ export default function StaffPanel({
           )}
         </div>
       )}
-      <table className="dataTable">
+      <table className="dataTable memberTable">
         <thead>
           <tr>
             <th>Name</th>
@@ -83,9 +83,11 @@ export default function StaffPanel({
         <tbody>
           {members.map((m) => (
             <tr key={m.userId}>
-              <td>{m.name}</td>
-              <td>{m.email}</td>
-              <td>
+              <td data-label="Name">
+                <b>{m.name}</b>
+              </td>
+              <td data-label="Email">{m.email}</td>
+              <td data-label="Role">
                 <select
                   value={m.role}
                   disabled={busy}
@@ -99,7 +101,7 @@ export default function StaffPanel({
                   ))}
                 </select>
               </td>
-              <td>
+              <td className="memberActions">
                 <button
                   className="secondary"
                   disabled={busy}
