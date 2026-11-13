@@ -10,6 +10,7 @@ import { config } from "../server/config";
 
 async function main() {
   const demo = process.argv.includes("--demo");
+  if (demo && process.env.APP_ENV === "production") throw new Error("Refusing to seed demo data into production");
   const db = getDb();
   await seedBranch(db, { demo, branchId: config.branchId() });
   console.log(`Branch ${config.branchId()} seeded${demo ? " with demo history" : ""}.`);

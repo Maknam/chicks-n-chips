@@ -12,7 +12,15 @@ export type Workspace = {
   state: State;
   role: Role;
   demo: boolean;
-  members: { userId: string; name: string; email: string; role: Role }[];
+  members: {
+    userId: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    phoneVerified: boolean;
+    role: Role;
+    since: string;
+  }[];
 };
 export function useOperations(area: string) {
   const [data, setData] = useState<Workspace | null>(null),

@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { accessTokens, session, staffMembers, user } from "@/db/schema";
+import { assertPhoneFree, staffPhone } from "./staff";
 import { DomainError, type Role } from "@/lib/domain";
 import { getAuth } from "./auth";
 import { transaction, type Ctx } from "./context";
@@ -32,7 +33,7 @@ async function issue(
   c: Ctx,
   kind: Kind,
   createdBy: string,
-  fields: { email?: string; name?: string; role?: Role; userId?: string } = {},
+  fields: { email?: string; name?: string; role?: Role; userId?: string; phone?: string | null } = {},
 ) {
   const token = newToken();
   await c.db.insert(accessTokens).values({
@@ -66,10 +67,10 @@ async function claim(t: Ctx, kind: Kind, token: string) {
   return row;
 }
 
-async function createAccount(name: string, email: string, plain: string) {
+async function createAccount(name: string, email: string, plain: string, phone?: string | null) {
   const context = await getAuth().$context;
   const created = await context.internalAdapter.createUser(
-    { name, email, emailVerified: true },
+    { name, email, emailVerified: true, ...(phone && { phoneNumber: phone, phoneNumberVerified: false }) },
     { method: "email-password" },
   );
   await context.internalAdapter.linkAccount({
@@ -128,7 +129,12 @@ export async function completeSetup(c: Ctx, raw: unknown) {
 
 // ---------- Invites ----------
 
-const inviteInput = z.object({ name, email, role: z.enum(["OWNER", "MANAGER", "CASHIER", "KITCHEN"]) });
+const inviteInput = z.object({
+  name,
+  email,
+  phone: staffPhone.optional().default(""),
+  role: z.enum(["OWNER", "MANAGER", "CASHIER", "KITCHEN"]),
+});
 
 /** Returns an invite token for a new person, or adds an existing account directly. */
 export async function createInvite(c: Ctx, raw: unknown, actorId: string) {
@@ -136,7 +142,13 @@ export async function createInvite(c: Ctx, raw: unknown, actorId: string) {
   const existing = await c.db.query.user.findFirst({ where: eq(user.email, input.email) });
   if (existing) {
     if (existing.id === actorId) throw new DomainError("You cannot change your own role.");
+    if (input.phone && !existing.phoneNumber) await assertPhoneFree(c, input.phone, existing.id);
     await transaction(c, async (t) => {
+      if (input.phone && !existing.phoneNumber)
+        await t.db
+          .update(user)
+          .set({ phoneNumber: input.phone, phoneNumberVerified: false, updatedAt: new Date() })
+          .where(eq(user.id, existing.id));
       await t.db
         .insert(staffMembers)
         .values({ userId: existing.id, branchId: t.branchId, role: input.role })
@@ -149,7 +161,8 @@ export async function createInvite(c: Ctx, raw: unknown, actorId: string) {
     });
     return { token: null, existing: true };
   }
-  const token = await issue(c, "INVITE", actorId, input);
+  await assertPhoneFree(c, input.phone);
+  const token = await issue(c, "INVITE", actorId, { ...input, phone: input.phone || null });
   await audit(c, "STAFF_INVITED", actorId, input.email, { role: input.role });
   return { token, existing: false };
 }
@@ -199,7 +212,16 @@ export async function acceptLink(c: Ctx, raw: unknown) {
     }
     const taken = await t.db.query.user.findFirst({ where: eq(user.email, row.email!) });
     if (taken) throw new DomainError("An account with this email already exists. Ask the owner to add it.", 409);
-    const userId = await createAccount(input.name ?? row.name ?? row.email!, row.email!, input.password);
+    // The number may have been claimed since the invite was created; join without it then.
+    const phoneTaken = row.phone
+      ? await t.db.query.user.findFirst({ where: eq(user.phoneNumber, row.phone) })
+      : null;
+    const userId = await createAccount(
+      input.name ?? row.name ?? row.email!,
+      row.email!,
+      input.password,
+      phoneTaken ? null : row.phone,
+    );
     await t.db.insert(staffMembers).values({ userId, branchId: t.branchId, role: row.role! });
     await audit(t, "STAFF_JOINED", userId, userId, { role: row.role });
     await bumpRevision(t);

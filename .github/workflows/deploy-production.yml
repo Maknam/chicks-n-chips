@@ -1,0 +1,39 @@
+name: Deploy production (Cloudflare)
+# main → Cloudflare Workers → Hyperdrive → Supabase. Built on Linux from a clean checkout, so no
+# local .env file can be bundled. The `production` GitHub environment should require a reviewer
+# (Settings → Environments → production → Required reviewers), so every deploy needs approval.
+# Database migrations are NOT run here: apply them first with `npm run db:migrate:prod`.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint && npm run typecheck && npm test
+      - run: npm run deploy
+        env:
+          # Scoped API token: Workers Scripts:Edit, Hyperdrive:Read (Account), on this account only.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Health check
+        env:
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+        run: |
+          sleep 10
+          curl -fsS -H "Authorization: Bearer $WORKER_SECRET" "$APP_ORIGIN/api/health" \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const h=JSON.parse(s);console.log({environment:h.environment,provider:h.provider,connection:h.connection,migrationsApplied:h.migrationsApplied});if(h.environment!=="production"||h.provider!=="supabase")process.exit(1)})'

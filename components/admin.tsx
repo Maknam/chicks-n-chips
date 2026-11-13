@@ -3,12 +3,13 @@ import { useEffect, useState } from "react";
 import Inventory from "./inventory";
 import StaffPanel from "./staff";
 import FoodPhoto from "./food-photo";
+import ProductEditor from "./product-editor";
 import Reports from "./reports";
 import SettingsPanel from "./settings";
 import { printReceipt } from "@/lib/receipt";
-import { Printer, RefreshCw } from "lucide-react";
+import { Plus, Printer, RefreshCw } from "lucide-react";
 import AdminShell, { PageHeader, type Connection } from "./layout/admin-shell";
-import { Button, ToastProvider } from "./ui";
+import { Badge, Button, ToastProvider } from "./ui";
 import { useOperations } from "./operations";
 import { request } from "./customer";
 import {
@@ -93,7 +94,7 @@ function AdminPage({ area }: { area: string }) {
   }, []);
   const [query, setQuery] = useState(""),
     [status, setStatus] = useState("ALL"),
-    [editing, setEditing] = useState<Product | null>(null),
+    [editing, setEditing] = useState<Product | "new" | null>(null),
     [notice, setNotice] = useState("");
   const s = data?.state,
     a = s ? analytics(s) : null;
@@ -116,22 +117,6 @@ function AdminPage({ area }: { area: string }) {
     });
     await load();
   };
-  async function saveProduct(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    if (
-      await update({
-        action: "product",
-        id: editing?.id,
-        name: f.get("name"),
-        description: f.get("description"),
-        price: Math.round(Number(f.get("price")) * 100),
-        prep: Number(f.get("prep")),
-        image: String(f.get("image") ?? ""),
-      })
-    )
-      setEditing(null);
-  }
   const metrics = a
     ? [
         ["Paid revenue", money(a.revenue), "Today · GHS"],
@@ -149,6 +134,8 @@ function AdminPage({ area }: { area: string }) {
       ]
     : [];
   const page = PAGES[area] ?? { title: area, description: "" };
+  const canEditMenu = data?.role === "OWNER" || data?.role === "MANAGER";
+  const categories = s ? [...new Set(s.products.map((p) => p.category))] : [];
   // Real count: new orders waiting for someone to accept them.
   const counts = s ? { orders: s.orders.filter((o) => o.status === "NEW").length } : undefined;
   return (
@@ -171,9 +158,16 @@ function AdminPage({ area }: { area: string }) {
             title={page.title}
             description={page.description}
             actions={
-              <Button variant="secondary" onClick={load} loading={loading} aria-label="Refresh data">
-                {!loading && <RefreshCw size={16} aria-hidden />} Refresh
-              </Button>
+              <div className="headerActions">
+                <Button variant="secondary" onClick={load} loading={loading} aria-label="Refresh data">
+                  {!loading && <RefreshCw size={16} aria-hidden />} Refresh
+                </Button>
+                {area === "menu" && canEditMenu && (
+                  <Button variant="primary" onClick={() => setEditing("new")}>
+                    <Plus size={16} aria-hidden /> Add product
+                  </Button>
+                )}
+              </div>
             }
           />
         )}
@@ -404,47 +398,76 @@ function AdminPage({ area }: { area: string }) {
               </section>
             )}
             {area === "menu" && (
-              <div className="grid">
-                {s.products.map((p) => (
-                  <article className="food" key={p.id}>
-                    <div className="foodImg">
-                      <FoodPhoto src={p.image} alt={p.name} />
-                      <span>{p.prep} min</span>
-                    </div>
-                    <div className="foodBody">
-                      <h3>{p.name}</h3>
-                      <p>{p.description}</p>
-                      <b>{money(p.price)}</b>
-                      <label className="formGrid">
-                        Availability
-                        <select
-                          value={p.availability}
-                          disabled={busy}
-                          onChange={(e) =>
-                            update({
-                              action: "availability",
-                              id: p.id,
-                              availability: e.target.value,
-                            })
-                          }
-                        >
-                          {["AVAILABLE", "LOW_STOCK", "SOLD_OUT"].map((x) => (
-                            <option key={x}>{x}</option>
-                          ))}
-                        </select>
-                      </label>
-                      {data.role !== "KITCHEN" && (
-                        <button
-                          className="ghost wide"
-                          onClick={() => setEditing(p)}
-                        >
-                          Edit product
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
+              <>
+                {categories.length > 1 && (
+                  <div className="menuStats">
+                    <span>
+                      <b>{s.products.length}</b> products
+                    </span>
+                    <span>
+                      <b>{s.products.filter((p) => p.availability === "AVAILABLE").length}</b> available
+                    </span>
+                    <span>
+                      <b>{s.products.filter((p) => p.availability === "SOLD_OUT").length}</b> sold out
+                    </span>
+                    <span>
+                      <b>{categories.length}</b> categories
+                    </span>
+                  </div>
+                )}
+                <div className="grid">
+                  {s.products.map((p) => (
+                    <article className={`food adminFood ${p.availability === "SOLD_OUT" ? "isSoldOut" : ""}`} key={p.id}>
+                      <div className="foodImg">
+                        <FoodPhoto src={p.image} alt={p.name} />
+                        <span>{p.prep} min</span>
+                      </div>
+                      <div className="foodBody">
+                        <div className="adminFood__meta">
+                          <Badge>{p.category}</Badge>
+                          <b>{money(p.price)}</b>
+                        </div>
+                        <h3>{p.name}</h3>
+                        <p>{p.description}</p>
+                        <label className="adminFood__availability">
+                          <span>Availability</span>
+                          <select
+                            value={p.availability}
+                            disabled={busy}
+                            data-state={p.availability}
+                            onChange={(e) =>
+                              update({
+                                action: "availability",
+                                id: p.id,
+                                availability: e.target.value,
+                              })
+                            }
+                          >
+                            <option value="AVAILABLE">Available</option>
+                            <option value="LOW_STOCK">Low stock</option>
+                            <option value="SOLD_OUT">Sold out</option>
+                          </select>
+                        </label>
+                        {canEditMenu && (
+                          <button className="ghost wide" onClick={() => setEditing(p)}>
+                            Edit product
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                  {canEditMenu && (
+                    <button type="button" className="addFoodTile" onClick={() => setEditing("new")}>
+                      <span>
+                        <Plus size={22} aria-hidden />
+                      </span>
+                      <b>Add a product</b>
+                      <small>Name, price, category and photo</small>
+                    </button>
+                  )}
+                </div>
+                {!s.products.length && !canEditMenu && <p className="quiet">No products on the menu yet.</p>}
+              </>
             )}
             {area === "customers" && (
               <section className="panel">
@@ -519,96 +542,20 @@ function AdminPage({ area }: { area: string }) {
             )}
             {area === "reports" && <Reports state={s} />}
             {area === "staff" && (
-              <section className="panel">
-                <h2>Staff access</h2>
-                <p>
-                  Owner: all areas. Manager: orders, menu, reports and
-                  inventory. Cashier: POS and orders. Kitchen: preparation and
-                  availability.
-                </p>
-                <StaffPanel members={data.members} reload={load} />
-                <h3>Recent audit events</h3>
-                {s.audits
-                  .slice(-15)
-                  .reverse()
-                  .map((a) => (
-                    <p className="quiet" key={a.id}>
-                      {a.createdAt.slice(0, 16)} · {a.action} · {a.actor}
-                    </p>
-                  ))}
-              </section>
+              <StaffPanel members={data.members} audits={s.audits} currentEmail={user?.email} reload={load} />
             )}
             {area === "inventory" && (
               <Inventory state={s} busy={busy} update={update} />
             )}
           </>
         )}
-        {editing && (
-          <div className="overlay">
-            <div className="sheet">
-              <button
-                className="close"
-                aria-label="Close product editor"
-                onClick={() => setEditing(null)}
-              >
-                ×
-              </button>
-              <h2>Edit product</h2>
-              <form className="formGrid" onSubmit={saveProduct}>
-                <label>
-                  Name
-                  <input name="name" defaultValue={editing.name} required />
-                </label>
-                <label>
-                  Description
-                  <input
-                    name="description"
-                    defaultValue={editing.description}
-                    required
-                  />
-                </label>
-                <label>
-                  Price in GHS
-                  <input
-                    name="price"
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    defaultValue={editing.price / 100}
-                    required
-                  />
-                </label>
-                <label>
-                  Preparation minutes
-                  <input
-                    name="prep"
-                    type="number"
-                    min="1"
-                    max="120"
-                    defaultValue={editing.prep}
-                    required
-                  />
-                </label>
-                <label>
-                  Photo link
-                  <input
-                    name="image"
-                    type="url"
-                    inputMode="url"
-                    placeholder="https://… (leave empty for a placeholder)"
-                    defaultValue={editing.image}
-                  />
-                  <small className="quiet">
-                    Use your own photos for the best results — upload them to
-                    any image host and paste the https link here.
-                  </small>
-                </label>
-                <button className="primary" disabled={busy}>
-                  Save product
-                </button>
-              </form>
-            </div>
-          </div>
+        {editing && s && (
+          <ProductEditor
+            product={editing === "new" ? null : editing}
+            categories={categories}
+            mutate={mutate}
+            onClose={() => setEditing(null)}
+          />
         )}
     </AdminShell>
   );

@@ -408,6 +408,8 @@ export const accessTokens = pgTable(
     email: text("email"),
     name: text("name"),
     role: staffRole("role"),
+    // Optional staff phone for SMS sign-in, set on the account when an INVITE is accepted.
+    phone: text("phone"),
     // RESET targets an existing account.
     userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     createdBy: text("created_by").notNull(),
