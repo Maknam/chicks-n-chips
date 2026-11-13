@@ -250,9 +250,13 @@ export const confirmed = (o: Pick<Order, "payment" | "paymentStatus">) =>
 
 // ---------- Input validation ----------
 
+/** Normalizes Ghana numbers to E.164: 0241234567, 241234567, 233241234567 → +233241234567. */
 export const phoneNumber = (s: string) => {
-  const p = s.replace(/[\s()-]/g, "");
-  return p.startsWith("0") ? "+233" + p.slice(1) : p;
+  const p = s.replace(/[\s().-]/g, "");
+  if (p.startsWith("0")) return "+233" + p.slice(1);
+  if (/^233\d{9}$/.test(p)) return "+" + p;
+  if (/^[2-9]\d{8}$/.test(p)) return "+233" + p;
+  return p;
 };
 export const orderInput = z.object({
   requestId: z.string().uuid(),

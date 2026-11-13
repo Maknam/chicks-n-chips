@@ -1,6 +1,10 @@
-# Copy to .dev.vars for local Workers preview. Do not commit real credentials.
+# Copy to .dev.vars for a LOCAL Workers preview (npm run preview). Do not commit real credentials.
+# Point this at the Neon Development branch, never production.
 NEXTJS_ENV=production
+APP_ENV=development
 APP_ORIGIN=http://localhost:8787
-DATABASE_URL=
+# On Workers the database comes from the HYPERDRIVE binding. For a local preview, point it at
+# Neon Development (never production):
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=
 BETTER_AUTH_SECRET=
 WORKER_SECRET=

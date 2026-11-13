@@ -11,18 +11,40 @@ const post = (url: string, data: unknown) =>
     body: JSON.stringify(data),
   });
 
-function Shell({ title, intro, children }: { title: string; intro: string; children: React.ReactNode }) {
+/** Centered card used by every staff auth screen (sign-in, setup, invite, reset, password). */
+export function AuthShell({
+  title,
+  intro,
+  children,
+  footer,
+}: {
+  title: string;
+  intro: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
   return (
-    <main className="login">
-      <a href="/" className="brandLink">
-        <span className="brandMark">C&C</span>
+    <main className="authPage">
+      <div className="authCard">
+        <div className="authBrand">
+          <span className="authLogo" aria-hidden>
+            C&amp;C
+          </span>
+          <span className="authBrandName">Chics &amp; Chips</span>
+          <span className="authBrandSub">Staff workspace</span>
+        </div>
+        <h1>{title}</h1>
+        {intro && <p className="authIntro">{intro}</p>}
+        {children}
+        {footer && <div className="authFooter">{footer}</div>}
+      </div>
+      <a href="/" className="authBack">
+        ← Back to the customer menu
       </a>
-      <h1>{title}</h1>
-      <p className="muted">{intro}</p>
-      {children}
     </main>
   );
 }
+const Shell = AuthShell;
 
 function useForm(submit: (data: Record<string, string>) => Promise<void>) {
   const [error, setError] = useState(""),
@@ -95,7 +117,7 @@ export function Setup() {
       intro="Create the owner account for Chics & Chips. You'll invite your team after this."
     >
       <ErrorText text={form.error} />
-      <form onSubmit={form.onSubmit}>
+      <form className="authForm" onSubmit={form.onSubmit}>
         <label>
           Your name
           <input name="name" required minLength={2} autoComplete="name" />
@@ -162,7 +184,7 @@ export function Join() {
       }
     >
       <ErrorText text={form.error} />
-      <form onSubmit={form.onSubmit}>
+      <form className="authForm" onSubmit={form.onSubmit}>
         {!reset && (
           <label>
             Your name
@@ -198,7 +220,7 @@ export function Account() {
     >
       {saved && <p className="notice">Password changed. Other devices have been signed out.</p>}
       <ErrorText text={form.error} />
-      <form onSubmit={form.onSubmit}>
+      <form className="authForm" onSubmit={form.onSubmit}>
         <label>
           Current password
           <input name="currentPassword" type="password" required autoComplete="current-password" />

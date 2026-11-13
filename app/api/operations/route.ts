@@ -2,11 +2,11 @@ import { z } from "zod";
 import { handle, body, sameOrigin } from "@/server/http";
 import { ctx } from "@/server/context";
 import { config } from "@/server/config";
-import { isArea, removeStaff, requireStaff, type Area } from "@/server/staff";
+import { isArea, removeStaff, requireStaff, setStaffPhone, type Area } from "@/server/staff";
 import { createInvite, createResetLink } from "@/server/onboarding";
 import { DomainError } from "@/lib/domain";
 import { buildWorkspace } from "@/server/services/workspace";
-import { setAvailability, updateProduct } from "@/server/services/catalog";
+import { archiveProduct, createProduct, setAvailability, updateProduct } from "@/server/services/catalog";
 import { recordMovement } from "@/server/services/inventory";
 import { updateBusiness, updateReceipt, updateSettings } from "@/server/services/branch";
 
@@ -28,6 +28,8 @@ export async function GET(req: Request) {
 const actionArea: Record<string, Area> = {
   availability: "menu",
   product: "menu",
+  createProduct: "menu",
+  archiveProduct: "menu",
   inventory: "inventory",
   settings: "settings",
   business: "settings",
@@ -35,6 +37,7 @@ const actionArea: Record<string, Area> = {
   invite: "staff",
   resetLink: "staff",
   removeStaff: "staff",
+  staffPhone: "staff",
 };
 
 export async function POST(req: Request) {
@@ -52,6 +55,14 @@ export async function POST(req: Request) {
       case "product":
         if (staff.role === "KITCHEN") throw new DomainError("Kitchen can change availability only", 403);
         await updateProduct(c, data, staff.id);
+        break;
+      case "createProduct": {
+        if (staff.role === "KITCHEN") throw new DomainError("Only owners and managers can add products", 403);
+        return { ok: true, ...(await createProduct(c, data, staff.id)) };
+      }
+      case "archiveProduct":
+        if (staff.role === "KITCHEN") throw new DomainError("Only owners and managers can remove products", 403);
+        await archiveProduct(c, data, staff.id);
         break;
       case "inventory":
         await recordMovement(c, data, staff.id);
@@ -73,6 +84,9 @@ export async function POST(req: Request) {
         const token = await createResetLink(c, z.object({ userId: z.string().min(1) }).parse(data).userId, staff.id);
         return { ok: true, link: `${origin(req)}/join#${token}` };
       }
+      case "staffPhone":
+        await setStaffPhone(c, data, staff.id);
+        break;
       case "removeStaff":
         await removeStaff(c, z.object({ userId: z.string().min(1) }).parse(data).userId, staff.id);
         break;

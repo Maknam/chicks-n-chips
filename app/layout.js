@@ -5,6 +5,7 @@ import "./tokens.css";
 import "./shell.css";
 import "./settings.css";
 import "./customer.css";
+import "./workspace.css";
 import Install from "../components/install";
 
 // Self-hosted at build time by next/font: no request to Google from the browser, no layout shift.
