@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { staffMembers, user } from "@/db/schema";
-import { DomainError, ROLES, type Role } from "@/lib/domain";
+import { DomainError, ROLES, phoneNumber, type Role } from "@/lib/domain";
 import { getAuth } from "./auth";
 import { ctx, transaction, type Ctx } from "./context";
 import { audit, bumpRevision } from "./services/branch";
@@ -52,7 +52,15 @@ export async function requireStaff(area: Area, c?: Ctx) {
 
 export async function listMembers(c: Ctx) {
   const rows = await c.db
-    .select({ userId: user.id, name: user.name, email: user.email, role: staffMembers.role })
+    .select({
+      userId: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phoneNumber,
+      phoneVerified: user.phoneNumberVerified,
+      role: staffMembers.role,
+      since: staffMembers.createdAt,
+    })
     .from(staffMembers)
     .innerJoin(user, eq(user.id, staffMembers.userId))
     .where(eq(staffMembers.branchId, c.branchId))
@@ -114,6 +122,43 @@ export async function removeStaff(c: Ctx, userId: string, actorId: string) {
       .delete(staffMembers)
       .where(and(eq(staffMembers.userId, userId), eq(staffMembers.branchId, t.branchId)));
     await audit(t, "STAFF_REMOVED", actorId, userId);
+    await bumpRevision(t);
+  });
+}
+
+/** Ghana mobile number in E.164, or "" to clear. */
+export const staffPhone = z
+  .string()
+  .max(30)
+  .transform(phoneNumber)
+  .pipe(z.string().regex(/^(\+233\d{9})?$/, "Use a Ghana phone number, e.g. 0241234567"));
+
+/** Throws if another account already uses this number. */
+export async function assertPhoneFree(c: Ctx, phone: string, exceptUserId?: string) {
+  if (!phone) return;
+  const taken = await c.db.query.user.findFirst({ where: eq(user.phoneNumber, phone) });
+  if (taken && taken.id !== exceptUserId)
+    throw new DomainError("That phone number is already used by another account.", 409);
+}
+
+const phoneInput = z.object({ userId: z.string().min(1), phone: staffPhone });
+
+/** Sets or clears the number a staff member signs in with. A new number starts unverified. */
+export async function setStaffPhone(c: Ctx, raw: unknown, actorId: string) {
+  const input = phoneInput.parse(raw);
+  const member = await c.db.query.staffMembers.findFirst({
+    where: and(eq(staffMembers.userId, input.userId), eq(staffMembers.branchId, c.branchId)),
+  });
+  if (!member) throw new DomainError("Staff member not found", 404);
+  await assertPhoneFree(c, input.phone, input.userId);
+  await transaction(c, async (t) => {
+    const current = await t.db.query.user.findFirst({ where: eq(user.id, input.userId) });
+    if (current?.phoneNumber === (input.phone || null)) return;
+    await t.db
+      .update(user)
+      .set({ phoneNumber: input.phone || null, phoneNumberVerified: false, updatedAt: new Date() })
+      .where(eq(user.id, input.userId));
+    await audit(t, input.phone ? "STAFF_PHONE_SET" : "STAFF_PHONE_REMOVED", actorId, input.userId);
     await bumpRevision(t);
   });
 }

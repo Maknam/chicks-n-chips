@@ -24,6 +24,9 @@ import { recordMovement } from "../server/services/inventory";
 import { buildWorkspace } from "../server/services/workspace";
 import { deliverDue } from "../server/services/notifications";
 import { updateSettings } from "../server/services/branch";
+import { archiveProduct, createProduct, listProducts } from "../server/services/catalog";
+import { setStaffPhone } from "../server/staff";
+import { phoneNumber } from "../lib/domain";
 
 let pg: PGlite;
 let c: Ctx;
@@ -141,4 +144,61 @@ test("online payment settlement is exact and idempotent; kitchen sees it only on
   assert.ok(ticket);
   assert.equal(ticket.phone, "", "kitchen never receives customer phones");
   assert.equal(shown.state.customers.length, 0);
+});
+
+test("owners can add a product in a new category, order it, and remove it", async () => {
+  const input = {
+    name: "Jollof & Chicken",
+    category: "Rice Meals",
+    description: "Smoky jollof with grilled chicken.",
+    price: 4500,
+    prep: 12,
+    image: "",
+  };
+  const { id } = await createProduct(c, input, "owner");
+  const created = (await listProducts(c)).find((p) => p.id === id);
+  assert.equal(created?.category, "Rice Meals");
+  assert.equal(created?.availability, "AVAILABLE");
+  assert.deepEqual(created?.variants.map((v) => v.id), ["regular"]);
+  await assert.rejects(createProduct(c, { ...input, name: "jollof & chicken" }, "owner"), /already on the menu/);
+  // The new category is reused case-insensitively.
+  const second = await createProduct(c, { ...input, name: "Fried Rice", category: "rice meals" }, "owner");
+  assert.equal((await listProducts(c)).find((p) => p.id === second.id)?.category, "Rice Meals");
+
+  const order = await createOrder(c, checkout({ items: [{ productId: id, qty: 1, options: [] }] }), "guest");
+  assert.equal(order.total, 4500);
+
+  await archiveProduct(c, { id }, "owner");
+  assert.equal((await listProducts(c)).some((p) => p.id === id), false);
+  await assert.rejects(archiveProduct(c, { id }, "owner"), /not found/);
+});
+
+test("staff sign-in phones are normalised, unique and reset verification when changed", async () => {
+  for (const [uid, email] of [["u-ama", "ama@test.local"], ["u-kofi", "kofi@test.local"]]) {
+    await c.db.insert(schema.user).values({ id: uid, name: uid, email });
+    await c.db.insert(schema.staffMembers).values({ userId: uid, branchId: c.branchId, role: "CASHIER" });
+  }
+  await setStaffPhone(c, { userId: "u-ama", phone: "024 123 4567" }, "owner");
+  let ama = await c.db.query.user.findFirst({ where: eq(schema.user.id, "u-ama") });
+  assert.equal(ama?.phoneNumber, "+233241234567");
+  assert.equal(ama?.phoneNumberVerified, false);
+
+  await assert.rejects(setStaffPhone(c, { userId: "u-kofi", phone: "+233241234567" }, "owner"), /already used/);
+  await assert.rejects(setStaffPhone(c, { userId: "u-kofi", phone: "12345" }, "owner"), /Ghana phone number/);
+  await assert.rejects(setStaffPhone(c, { userId: "nobody", phone: "0201112222" }, "owner"), /not found/);
+
+  await c.db.update(schema.user).set({ phoneNumberVerified: true }).where(eq(schema.user.id, "u-ama"));
+  await setStaffPhone(c, { userId: "u-ama", phone: "0551234567" }, "owner");
+  ama = await c.db.query.user.findFirst({ where: eq(schema.user.id, "u-ama") });
+  assert.equal(ama?.phoneNumber, "+233551234567");
+  assert.equal(ama?.phoneNumberVerified, false);
+
+  await setStaffPhone(c, { userId: "u-ama", phone: "" }, "owner");
+  ama = await c.db.query.user.findFirst({ where: eq(schema.user.id, "u-ama") });
+  assert.equal(ama?.phoneNumber, null);
+});
+
+test("Ghana phone numbers normalise from common ways of typing them", () => {
+  for (const typed of ["0241234567", "024 123 4567", "241234567", "233241234567", "+233 24 123 4567", "(024) 123-4567"])
+    assert.equal(phoneNumber(typed), "+233241234567", typed);
 });

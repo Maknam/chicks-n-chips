@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "chics-and-chips-mvp",
+  "name": "chicks-n-chips",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-17",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -12,10 +12,32 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "chics-and-chips-mvp"
+      "service": "chicks-n-chips"
     }
   ],
+  // Production: GitHub main → Cloudflare Workers → Hyperdrive → Supabase PostgreSQL.
+  // The app reads its database ONLY from this binding on Workers (db/client.ts); there is no
+  // DATABASE_URL secret. Create it with:
+  //   npx wrangler hyperdrive create chicks-n-chips-prod --connection-string="<Supabase session pooler URL>"   //     --sslmode=verify-full --origin-ca=<id from `wrangler cert upload certificate-authority`>
+  // then paste the returned id below.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_PRODUCTION_HYPERDRIVE_ID"
+    }
+  ],
+  // Non-secret values only. Secrets: `npx wrangler secret put <NAME>` for BETTER_AUTH_SECRET,
+  // RECEIPT_SECRET, WORKER_SECRET and, when enabled, PAYSTACK_SECRET_KEY, MNOTIFY_API_KEY.
   "vars": {
+    "APP_ENV": "production",
+    // Supabase project ref (public id), reported by /api/health for verification.
+    "DATABASE_ENDPOINT": "",
+    // Public URL of the production site, e.g. https://chicks-n-chips.<your-subdomain>.workers.dev
+    "APP_ORIGIN": "",
+    // Only this email may create the first owner account at /setup.
+    "OWNER_EMAIL": "",
+    "DEMO_MODE": "false",
+    "MNOTIFY_SENDER": "ChicsChips",
     "RESTAURANT_ID": "00000000-0000-4000-8000-000000000001",
     "BRANCH_ID": "00000000-0000-4000-8000-000000000002"
   },
