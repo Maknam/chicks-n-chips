@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "chics-and-chips-mvp",
+  "name": "chics-n-chips",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-17",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
