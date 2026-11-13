@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "chics-and-chips-mvp",
+  "name": "chicks-n-chips",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-17",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -12,7 +12,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "chics-and-chips-mvp"
+      "service": "chicks-n-chips"
     }
   ],
   // Production: GitHub main → Cloudflare Workers → Hyperdrive → Supabase PostgreSQL.
@@ -32,7 +32,7 @@
     "APP_ENV": "production",
     // Supabase project ref (public id), reported by /api/health for verification.
     "DATABASE_ENDPOINT": "",
-    // Public URL of the production site, e.g. https://chicks-n-chips.<subdomain>.workers.dev
+    // Public URL of the production site, e.g. https://chicks-n-chips.<your-subdomain>.workers.dev
     "APP_ORIGIN": "",
     // Only this email may create the first owner account at /setup.
     "OWNER_EMAIL": "",
