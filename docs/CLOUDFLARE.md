@@ -22,7 +22,7 @@ a missing binding is an error, never a fallback.
    ```bash
    npx wrangler cert upload certificate-authority --ca-cert certs/supabase-prod-ca.crt --name supabase-prod-ca
    npx wrangler hyperdrive create chicks-n-chips-prod --connection-string="<session pooler URL>" \
-     --sslmode=verify-full --origin-ca=<certificate id>
+     --sslmode=verify-full --ca-certificate-id=<certificate id> --caching-disabled
    ```
    Put the returned id in `wrangler.jsonc` → `hyperdrive[0].id`.
 3. Secrets: `npx wrangler secret put BETTER_AUTH_SECRET` (and `RECEIPT_SECRET`, `WORKER_SECRET`,
