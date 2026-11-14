@@ -25,11 +25,18 @@ a missing binding is an error, never a fallback.
      --sslmode=verify-full --ca-certificate-id=<certificate id> --caching-disabled
    ```
    Put the returned id in `wrangler.jsonc` → `hyperdrive[0].id`.
-3. Secrets: `npx wrangler secret put BETTER_AUTH_SECRET` (and `RECEIPT_SECRET`, `WORKER_SECRET`,
-   `MNOTIFY_API_KEY`, `PAYSTACK_SECRET_KEY` when enabled). Non-secret values live in
-   `wrangler.jsonc` → `vars` (`APP_ORIGIN`, `OWNER_EMAIL`, `DATABASE_ENDPOINT` = project ref).
-4. GitHub: `production` environment with a required reviewer, secrets `CLOUDFLARE_API_TOKEN`,
-   `CLOUDFLARE_ACCOUNT_ID`, `WORKER_SECRET`, variable `APP_ORIGIN`.
+3. Runtime configuration lives only in the GitHub `cloudflare-production` environment (never in the repo,
+   never typed into the Cloudflare dashboard). The deploy workflow pushes it to Cloudflare as
+   encrypted Worker secrets with `scripts/sync-worker-secrets.mjs` (`wrangler secret bulk` over stdin).
+   - Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `BETTER_AUTH_SECRET`, `RECEIPT_SECRET`,
+     `WORKER_SECRET` (each 32+ random characters), `OWNER_EMAIL`; optional `MNOTIFY_API_KEY`,
+     `PAYSTACK_SECRET_KEY`, `SENTRY_DSN`.
+   - Variables: `APP_ORIGIN` (`https://host`, no trailing slash); optional `DATABASE_ENDPOINT`
+     (Supabase project ref).
+   - `wrangler.jsonc` → `vars` holds only harmless constants. Never add a var with the same name as
+     a secret: the deploy fails.
+4. GitHub: give the `cloudflare-production` environment a required reviewer. Deploy with GitHub Actions
+   only: disconnect Cloudflare Workers Builds so pushes are not deployed twice.
 
 ## Database administration (from one trusted machine, `.env.prod`)
 
