@@ -1,0 +1,64 @@
+name: Deploy production (Cloudflare)
+# main → Cloudflare Workers → Hyperdrive → Supabase. Built on Linux from a clean checkout, so no
+# local .env file can be bundled. The `cloudflare-production` GitHub environment holds every runtime value
+# and should require a reviewer (Settings → Environments → cloudflare-production), so each deploy needs approval.
+# Database migrations are NOT run here: apply them first with `npm run db:migrate:prod`.
+#
+# GitHub `cloudflare-production` environment
+#   Secrets:   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, BETTER_AUTH_SECRET, RECEIPT_SECRET,
+#              WORKER_SECRET, OWNER_EMAIL, [MNOTIFY_API_KEY], [PAYSTACK_SECRET_KEY], [SENTRY_DSN]
+#   Variables: APP_ORIGIN (e.g. https://chicks-n-chips.<subdomain>.workers.dev), [DATABASE_ENDPOINT]
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: cloudflare-production
+    env:
+      # Scoped API token: Workers Scripts:Edit and Hyperdrive:Read on this account only.
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint && npm run typecheck && npm test
+      - name: Build and deploy the Worker
+        run: npm run deploy
+      # After the deploy: secrets persist across versions, and the deploy drops any stale
+      # dashboard vars of the same names. Values go to Wrangler over stdin, never into logs.
+      - name: Sync runtime secrets to Cloudflare
+        run: node scripts/sync-worker-secrets.mjs
+        env:
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          RECEIPT_SECRET: ${{ secrets.RECEIPT_SECRET }}
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          MNOTIFY_API_KEY: ${{ secrets.MNOTIFY_API_KEY }}
+          PAYSTACK_SECRET_KEY: ${{ secrets.PAYSTACK_SECRET_KEY }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+          DATABASE_ENDPOINT: ${{ vars.DATABASE_ENDPOINT }}
+      - name: Health check (production on Supabase through Hyperdrive, sign-in configured)
+        env:
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+        run: |
+          sleep 15
+          curl -fsS -H "Authorization: Bearer $WORKER_SECRET" "$APP_ORIGIN/api/health" -o health.json
+          curl -fsS "$APP_ORIGIN/api/session" -o /dev/null
+          node -e '
+            const h = require("./health.json");
+            console.log({ environment: h.environment, provider: h.provider, connection: h.connection, migrationsApplied: h.migrationsApplied });
+            if (h.environment !== "production" || h.provider !== "supabase" || h.connection !== "hyperdrive") process.exit(1);
+          '

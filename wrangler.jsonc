@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "chics-n-chips",
+  "name": "chicks-n-chips",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-17",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -12,10 +12,35 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "chics-and-chips-mvp"
+      "service": "chicks-n-chips"
     }
   ],
+  // Production: GitHub main → Cloudflare Workers → Hyperdrive → Supabase PostgreSQL.
+  // The app reads its database ONLY from this binding on Workers (db/client.ts); there is no
+  // DATABASE_URL secret. Create the config (Supabase session pooler, sslmode verify-full against
+  // Supabase's CA, caching disabled) with `node --env-file=.env.prod scripts/create-hyperdrive.mjs`,
+  // then paste the returned id below. The id is not a secret.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "0ee7978eb2f04eb3ad92fb6927db05aa",
+      // Local emulation only; never uploaded or used by the deployed Worker. `opennextjs-cloudflare
+      // deploy` starts Wrangler's local platform proxy just to read `vars`, and local Hyperdrive
+      // refuses to start without a connection string. This placeholder (dummy credentials, nothing
+      // listening) satisfies it without any real credentials in CI. For `npm run preview`, set
+      // CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE (Neon Development), which overrides it.
+      "localConnectionString": "postgresql://local-placeholder:local-placeholder@127.0.0.1:5432/local-placeholder"
+    }
+  ],
+  // Harmless constants only. Everything environment-specific or sensitive (BETTER_AUTH_SECRET,
+  // RECEIPT_SECRET, WORKER_SECRET, APP_ORIGIN, OWNER_EMAIL, DATABASE_ENDPOINT, MNOTIFY_API_KEY,
+  // PAYSTACK_SECRET_KEY) lives in the GitHub `cloudflare-production` environment and is pushed to Cloudflare
+  // as encrypted Worker secrets by .github/workflows/deploy-production.yml. Do not add them here:
+  // a plain var with the same name as a secret makes the deploy fail.
   "vars": {
+    "APP_ENV": "production",
+    "DEMO_MODE": "false",
+    "MNOTIFY_SENDER": "ChicsChips",
     "RESTAURANT_ID": "00000000-0000-4000-8000-000000000001",
     "BRANCH_ID": "00000000-0000-4000-8000-000000000002"
   },

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { DomainError } from "@/lib/domain";
 import { rateLimits } from "@/db/schema";
@@ -49,11 +49,27 @@ export async function body(req: Request, limit = 32_000) {
   }
 }
 
-/** Fixed one-minute window per client IP and action, stored in Postgres so it holds across instances. */
-export async function rateLimit(c: Ctx, req: Request, action: string, max = 30) {
-  // Vercel overwrites x-forwarded-for with the real client address.
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-  const key = createHash("sha256").update(`${action}:${ip}`).digest("hex");
+const onCloudflare = typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+
+/**
+ * The caller's address, from the header the host platform sets and clients cannot forge.
+ * Cloudflare sets cf-connecting-ip (an x-forwarded-for sent by the client is passed through there,
+ * so it is spoofable); Vercel overwrites x-forwarded-for with the real client address.
+ */
+export function clientIp(req: Request) {
+  const raw = onCloudflare
+    ? req.headers.get("cf-connecting-ip")
+    : req.headers.get("x-forwarded-for")?.split(",")[0];
+  return raw?.trim() || "local";
+}
+
+/**
+ * Fixed one-minute window per action and client IP (or per `subject`, e.g. a phone number,
+ * when given), stored in Postgres so it holds across instances.
+ */
+export async function rateLimit(c: Ctx, req: Request, action: string, max = 30, subject?: string) {
+  const ip = clientIp(req);
+  const key = createHash("sha256").update(`${action}:${subject ?? ip}`).digest("hex");
   const expired = sql`${rateLimits.windowStart} < now() - interval '1 minute'`;
   const [row] = await c.db
     .insert(rateLimits)
@@ -68,4 +84,13 @@ export async function rateLimit(c: Ctx, req: Request, action: string, max = 30) 
     .returning({ count: rateLimits.count });
   const count = row?.count ?? 0;
   if (count > max) throw new DomainError("Too many requests. Wait a minute.", 429);
+}
+
+/** True when the request carries `Authorization: Bearer <WORKER_SECRET or CRON_SECRET>`. */
+export function hasWorkerSecret(req: Request) {
+  const given = Buffer.from(req.headers.get("authorization") ?? "");
+  return config.workerSecrets().some((secret) => {
+    const expected = Buffer.from(`Bearer ${secret}`);
+    return given.length === expected.length && timingSafeEqual(given, expected);
+  });
 }

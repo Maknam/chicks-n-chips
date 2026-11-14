@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
   turbopack: { root: process.cwd() },
+  // Loaded with Node's require instead of being bundled. `pg` is already on Next's default list,
+  // but OpenNext only reads this explicit list when deciding which packages to copy in full for
+  // the "workerd" build condition: without `pg-cloudflare` here, only its Node stub
+  // (dist/empty.js) is traced and the Worker build cannot resolve its Workers socket code.
+  serverExternalPackages: ["pg", "pg-cloudflare"],
   async headers() {
     return [
       {
